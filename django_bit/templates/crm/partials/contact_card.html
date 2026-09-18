@@ -1,0 +1,116 @@
+{% load static %}
+<div 
+    id="contact-card-{{ contact.id }}" 
+    class="group relative bg-slate-900/90 hover:bg-slate-900 border border-slate-800 hover:border-slate-700/80 rounded-2xl p-4 shadow-md transition-all duration-200 space-y-3"
+    data-contact-name="{{ contact.nombre|lower }}"
+    data-contact-company="{{ contact.empresa|lower }}"
+    data-contact-stage="{{ contact.estado }}"
+>
+    <!-- Cabecera de Tarjeta: Avatar con Iniciales, Nombre y Badge de Origen -->
+    <div class="flex items-start justify-between gap-2.5">
+        <div class="flex items-center gap-2.5 min-w-0">
+            <!-- Avatar con Iniciales y Color según Estado -->
+            <div class="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center font-bold text-xs shadow-sm border border-slate-700/50 
+                {% if contact.estado == 'Nuevo' %}bg-sky-950 text-sky-300 border-sky-800/60
+                {% elif contact.estado == 'Contactado' %}bg-amber-950 text-amber-300 border-amber-800/60
+                {% elif contact.estado == 'Interesado' %}bg-indigo-950 text-indigo-300 border-indigo-800/60
+                {% elif contact.estado == 'Propuesta' %}bg-purple-950 text-purple-300 border-purple-800/60
+                {% elif contact.estado == 'Cliente' %}bg-emerald-950 text-emerald-300 border-emerald-800/60
+                {% else %}bg-slate-800 text-slate-300{% endif %}"
+            >
+                {{ contact.nombre|slice:":2"|upper }}
+            </div>
+
+            <!-- Nombre, Cargo y Empresa -->
+            <div class="min-w-0">
+                <h4 class="font-bold text-xs sm:text-sm text-white truncate group-hover:text-emerald-400 transition-colors">
+                    {{ contact.nombre }}
+                </h4>
+                {% if contact.empresa or contact.cargo %}
+                <p class="text-[11px] text-slate-400 truncate">
+                    {{ contact.cargo }}{% if contact.cargo and contact.empresa %} · {% endif %}{{ contact.empresa }}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Origen de Hardware NFC -->
+        <span class="flex-shrink-0 text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-950 text-slate-400 border border-slate-800">
+            {{ contact.origen }}
+        </span>
+    </div>
+
+    <!-- Canales de Comunicación Directos -->
+    <div class="flex items-center gap-2 text-xs flex-wrap pt-0.5">
+        {% if contact.email %}
+        <a 
+            href="mailto:{{ contact.email }}" 
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-[11px] text-slate-300 hover:text-emerald-400 transition"
+            title="{{ contact.email }}"
+        >
+            <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+            <span class="truncate max-w-[130px] font-mono">{{ contact.email }}</span>
+        </a>
+        {% endif %}
+
+        {% if contact.telefono or contact.whatsapp %}
+        <a 
+            href="https://wa.me/{{ contact.whatsapp|default:contact.telefono|cut:' '|cut:'+' }}" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800/80 text-[11px] text-slate-300 hover:text-emerald-400 transition"
+            title="Chat en WhatsApp"
+        >
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span class="font-mono">{{ contact.telefono|default:contact.whatsapp }}</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Notas Breves de Contacto -->
+    {% if contact.notas %}
+    <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 text-[11px] text-slate-400 leading-relaxed">
+        <p class="line-clamp-2 italic">“{{ contact.notas }}”</p>
+    </div>
+    {% endif %}
+
+    <!-- Footer de la Tarjeta: Timestamp y Cambio de Estado HTMX con Indicador -->
+    <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs gap-2">
+        <span class="text-[10px] text-slate-500 font-mono">
+            {{ contact.created_at|date:"d M, H:i" }}
+        </span>
+
+        <!-- Selector de Etapa con HTMX Asíncrono e Indicador de Carga -->
+        <form 
+            hx-post="{% url 'crm:update_stage' contact_id=contact.id %}" 
+            hx-target="#contact-card-{{ contact.id }}" 
+            hx-swap="outerHTML" 
+            hx-indicator="#stage-spinner-{{ contact.id }}"
+            class="flex items-center gap-1.5"
+        >
+            {% csrf_token %}
+            
+            <span id="stage-spinner-{{ contact.id }}" class="htmx-indicator">
+                <svg class="animate-spin h-3.5 w-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+            </span>
+
+            <select 
+                name="stage" 
+                onchange="this.form.requestSubmit()"
+                aria-label="Cambiar etapa del contacto"
+                class="bg-slate-950 border border-slate-800 hover:border-slate-700 text-[11px] text-slate-300 font-medium rounded-lg px-2.5 py-1 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none cursor-pointer transition"
+            >
+                <option value="Nuevo" {% if contact.estado == 'Nuevo' %}selected{% endif %}>Nuevo</option>
+                <option value="Contactado" {% if contact.estado == 'Contactado' %}selected{% endif %}>Contactado</option>
+                <option value="Interesado" {% if contact.estado == 'Interesado' %}selected{% endif %}>Interesado</option>
+                <option value="Propuesta" {% if contact.estado == 'Propuesta' %}selected{% endif %}>Propuesta</option>
+                <option value="Cliente" {% if contact.estado == 'Cliente' %}selected{% endif %}>Cliente (Cerrado)</option>
+            </select>
+        </form>
+    </div>
+</div>

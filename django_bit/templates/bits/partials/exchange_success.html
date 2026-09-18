@@ -1,0 +1,70 @@
+{% load static %}
+<div id="exchange-card" class="rounded-3xl bg-slate-900 border border-emerald-500/40 p-6 sm:p-8 shadow-glow text-center space-y-5 animate-fade-in">
+    
+    <!-- Icono de Celebración con Microinteracción -->
+    <div class="relative w-16 h-16 mx-auto">
+        <div class="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping opacity-75"></div>
+        <div class="relative w-16 h-16 rounded-full bg-emerald-500/10 border-2 border-emerald-500 flex items-center justify-center text-emerald-400 shadow-inner">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Encabezado de Confirmación -->
+    <div class="space-y-1.5">
+        <h3 class="text-xl sm:text-2xl font-black text-white tracking-tight">¡Contacto Enviado con Éxito!</h3>
+        <p class="text-xs font-semibold text-emerald-400">
+            Sincronizado directamente en el CRM de {{ owner_name }}.
+        </p>
+    </div>
+
+    <!-- Tarjeta resumen de datos compartidos -->
+    <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-left space-y-2 max-w-sm mx-auto">
+        <div class="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+            <span>REGISTRO DE INTERCAMBIO</span>
+            <span class="text-emerald-400 font-bold">ACTIVO</span>
+        </div>
+        <div>
+            <p class="text-sm font-bold text-white">{{ visitor_name }}</p>
+            {% if contact.cargo or contact.empresa %}
+            <p class="text-xs text-slate-400">
+                {{ contact.cargo }}{% if contact.cargo and contact.empresa %} · {% endif %}{{ contact.empresa }}
+            </p>
+            {% endif %}
+        </div>
+        {% if contact.email or contact.telefono %}
+        <div class="pt-1 text-xs text-slate-300 font-mono flex flex-col gap-0.5">
+            {% if contact.email %}<span>✉ {{ contact.email }}</span>{% endif %}
+            {% if contact.telefono %}<span>✆ {{ contact.telefono }}</span>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <p class="text-xs text-slate-300 leading-relaxed max-w-xs mx-auto">
+        Gracias, <strong class="text-white">{{ visitor_name }}</strong>. Hemos completado el apretón de manos digital. Ahora puedes guardar también la ficha de {{ owner_name }} en tu agenda.
+    </p>
+
+    <!-- Acciones Finales -->
+    <div class="pt-2 flex flex-col gap-2.5 max-w-sm mx-auto">
+        <!-- Descargar vCard del dueño -->
+        <a 
+            href="{% url 'bits:download_vcard' token=bit.token_publico %}" 
+            class="w-full py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2"
+        >
+            <svg class="w-4 h-4 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <span>Guardar ficha de {{ owner_name }} (.vcf)</span>
+        </a>
+
+        <!-- Botón para recargar el formulario si se desea enviar otra información -->
+        <button 
+            type="button" 
+            onclick="window.location.reload()" 
+            class="w-full py-2.5 px-3 text-slate-400 hover:text-slate-200 text-xs font-medium transition"
+        >
+            ¿Quieres modificar tus datos o enviar otra información?
+        </button>
+    </div>
+</div>

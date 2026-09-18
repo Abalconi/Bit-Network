@@ -1,0 +1,6 @@
+{
+  "name": "BIT - Networking NFC & CRM",
+  "description": "Plataforma de networking físico-digital y CRM Kanban con perfiles NFC, tokens NanoID Base62 e intercambio de contactos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
