@@ -1,6 +1,6 @@
 # BIT — Plataforma de Networking Físico-Digital y CRM Personal
 
-## Arquitectura MVP (Django 5 + HTMX + Tailwind CSS + PostgreSQL)
+## Arquitectura MVP (Django REST + React + PostgreSQL)
 
 BIT es una solución de hardware-to-software donde una tarjeta física NFC actúa como el punto de inicio de la relación profesional.
 
@@ -8,7 +8,7 @@ BIT es una solución de hardware-to-software donde una tarjeta física NFC actú
 ```
 [Dispositivo Físico NFC] ──(NFC Tap / QR)──> [Perfil Digital: /b/<token>/] 
                                                    │
-                                              (HTMX POST)
+                                              (Django REST API)
                                                    ▼
                                          [ContactExchange]
                                                    │
@@ -25,6 +25,15 @@ En su lugar se genera un token aleatorio en **Base62** de 8 caracteres (ej. `/b/
 - Longitud óptima para chips NTAG213/215/216.
 
 ### Ejecución Local
+
+La aplicación usa PostgreSQL. Configura la conexión antes de ejecutar Django:
+
+```powershell
+$env:DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/bit_db"
+```
+
+También puedes usar las variables `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+`POSTGRES_HOST` y `POSTGRES_PORT`.
 
 1. **Instalar dependencias:**
    ```bash
@@ -51,3 +60,10 @@ En su lugar se genera un token aleatorio en **Base62** de 8 caracteres (ej. `/b/
    ```bash
    python manage.py runserver
    ```
+
+El CRM React consume estos endpoints autenticados por token:
+
+- `POST /crm/api/login/`
+- `GET|POST /crm/api/contacts/`
+- `PATCH|DELETE /crm/api/contacts/<id>/`
+- `PATCH /crm/api/contacts/<id>/stage/`

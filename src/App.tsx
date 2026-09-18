@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   INITIAL_USER_PROFILE, 
   INITIAL_BIT_DEVICE, 
@@ -26,6 +26,8 @@ import { LandingPageView } from './components/views/LandingPageView';
 import { LeadDetailModal } from './components/LeadDetailModal';
 import { NewContactModal } from './components/NewContactModal';
 import { PublicFullScreenProfile } from './components/PublicFullScreenProfile';
+import { CrmAuthModal } from './components/CrmAuthModal';
+import { listContacts, login, updateContactStage } from './services/crmApi';
 import { CheckCircle2, Bell } from 'lucide-react';
 
 export default function App() {
@@ -42,6 +44,8 @@ export default function App() {
   ));
   const [isPublicFullScreen, setIsPublicFullScreen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [crmToken, setCrmToken] = useState(() => localStorage.getItem('bit_crm_token'));
+  const [isCrmAuthOpen, setIsCrmAuthOpen] = useState(false);
 
   // Modales
   const [selectedLead, setSelectedLead] = useState<CrmLead | null>(null);
@@ -56,6 +60,22 @@ export default function App() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  useEffect(() => {
+    if (currentTab !== 'dashboard' || !crmToken) {
+      return;
+    }
+
+    listContacts(crmToken)
+      .then(setLeads)
+      .catch(() => showToast('No se pudieron cargar los contactos del CRM'));
+  }, [currentTab, crmToken]);
+
+  useEffect(() => {
+    if (window.location.pathname.startsWith('/crm') && !crmToken) {
+      setIsCrmAuthOpen(true);
+    }
+  }, [crmToken]);
 
   // Acción: Intercambio de Contacto desde el perfil público del cliente
   const handleContactExchange = (data: VisitorExchangeData) => {
@@ -131,6 +151,12 @@ export default function App() {
 
     if (selectedLead && selectedLead.id === leadId) {
       setSelectedLead(prev => prev ? { ...prev, estatus: newStage } : null);
+    }
+
+    if (crmToken) {
+      updateContactStage(crmToken, leadId, newStage).catch(() => {
+        showToast('No se pudo sincronizar la etapa con Django');
+      });
     }
 
     showToast(`Estatus actualizado a: ${newStage}`);
@@ -336,6 +362,28 @@ export default function App() {
         isOpen={isNewContactOpen}
         onClose={() => setIsNewContactOpen(false)}
         onAddContact={handleAddNewContact}
+      />
+
+      <CrmAuthModal
+        isOpen={isCrmAuthOpen}
+        onClose={() => setIsCrmAuthOpen(false)}
+        onLoginSuccess={async ({ email, nombre, password }) => {
+          if (!password) {
+            showToast('Introduce tu contraseña para conectar con Django');
+            return;
+          }
+
+          try {
+            const session = await login(email, password);
+            localStorage.setItem('bit_crm_token', session.token);
+            setCrmToken(session.token);
+            setUser(prev => ({ ...prev, email: session.user.email, nombre }));
+            setIsCrmAuthOpen(false);
+            showToast('Sesión iniciada correctamente');
+          } catch (error) {
+            showToast(error instanceof Error ? error.message : 'No se pudo iniciar sesión');
+          }
+        }}
       />
 
     </div>

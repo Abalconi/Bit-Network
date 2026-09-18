@@ -19,7 +19,7 @@ import {
 interface CrmAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess: (userCredentials: { email: string; nombre: string }) => void;
+  onLoginSuccess: (userCredentials: { email: string; nombre: string; password: string }) => void;
 }
 
 export const CrmAuthModal: React.FC<CrmAuthModalProps> = ({
@@ -56,6 +56,7 @@ export const CrmAuthModal: React.FC<CrmAuthModalProps> = ({
       onLoginSuccess({
         email: loginEmail || 'alessandra@bit.gt',
         nombre: 'Alessandra Balconi',
+        password: loginPassword,
       });
       onClose();
     }, 700);
@@ -68,6 +69,7 @@ export const CrmAuthModal: React.FC<CrmAuthModalProps> = ({
       onLoginSuccess({
         email: 'alessandra@bit.gt',
         nombre: 'Alessandra Balconi',
+        password: '',
       });
       onClose();
     }, 500);
@@ -82,6 +84,7 @@ export const CrmAuthModal: React.FC<CrmAuthModalProps> = ({
       onLoginSuccess({
         email: actEmail || 'cliente@bit.gt',
         nombre: actNombre || 'Nuevo Usuario BIT',
+        password: actPassword,
       });
       onClose();
     }, 900);

@@ -1,15 +1,17 @@
 from django.urls import path
-from . import views
+from .api import (
+    ContactDetailAPIView,
+    ContactListCreateAPIView,
+    ContactStageAPIView,
+    LoginAPIView,
+)
 
 app_name = 'crm'
 
 urlpatterns = [
-    # Dashboard principal con Kanban
-    path('dashboard/', views.kanban_dashboard, name='dashboard'),
+    path('api/login/', LoginAPIView.as_view(), name='api_login'),
+    path('api/contacts/', ContactListCreateAPIView.as_view(), name='api_contacts'),
+    path('api/contacts/<int:contact_id>/', ContactDetailAPIView.as_view(), name='api_contact_detail'),
+    path('api/contacts/<int:contact_id>/stage/', ContactStageAPIView.as_view(), name='api_contact_stage'),
 
-    # Actualización reactiva de etapas vía HTMX
-    path('contacts/<int:contact_id>/stage/', views.update_contact_stage, name='update_stage'),
-
-    # Agregar nota rápida a contacto vía HTMX
-    path('contacts/<int:contact_id>/note/', views.add_contact_note, name='add_note'),
 ]
