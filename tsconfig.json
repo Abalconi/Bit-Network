@@ -23,5 +23,11 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "venv",
+    "django_bit",
+    "node_modules",
+    "dist"
+  ]
 }

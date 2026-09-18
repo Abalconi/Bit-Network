@@ -37,7 +37,9 @@ export default function App() {
 
   // Navegación y Vistas
   // La Landing Page es la página principal pública de presentación del producto y ventas
-  const [currentTab, setCurrentTab] = useState<NavTabId>('landing');
+  const [currentTab, setCurrentTab] = useState<NavTabId>(() => (
+    window.location.pathname.startsWith('/crm') ? 'dashboard' : 'landing'
+  ));
   const [isPublicFullScreen, setIsPublicFullScreen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -206,6 +208,7 @@ export default function App() {
     return (
       <LandingPageView
         user={user}
+        onOpenCrmLogin={() => window.location.assign('/crm/')}
       />
     );
   }
