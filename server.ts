@@ -11,7 +11,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const DIST_DIR = path.resolve(__dirname, 'dist');
 
 // Compress all responses with gzip.
-app.use(compression());
+app.use(compression() as unknown as express.RequestHandler);
 
 // Serve the Vite-built static assets.
 app.use(
