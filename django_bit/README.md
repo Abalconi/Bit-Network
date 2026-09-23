@@ -4,7 +4,6 @@
 
 BIT es una solución de hardware-to-software donde una tarjeta física NFC actúa como el punto de inicio de la relación profesional.
 
-### Flujo Imparable
 ```
 [Dispositivo Físico NFC] ──(NFC Tap / QR)──> [Perfil Digital: /b/<token>/] 
                                                    │
@@ -12,10 +11,9 @@ BIT es una solución de hardware-to-software donde una tarjeta física NFC actú
                                                    ▼
                                          [ContactExchange]
                                                    │
-                                            (Auto-creación)
+                                     (Genera Contacto en CRM)
                                                    ▼
-                                        [CRM Contact Pipeline] 
-                                        (Aislamiento por User)
+                                         [Pipeline / Leads]
 ```
 
 ### Seguridad de Hardware (Tokens NanoID Base62)
@@ -24,46 +22,41 @@ En su lugar se genera un token aleatorio en **Base62** de 8 caracteres (ej. `/b/
 - Espacio muestral: $62^8 \approx 2.18 \times 10^{14}$ combinaciones.
 - Longitud óptima para chips NTAG213/215/216.
 
-### Ejecución Local
+---
 
-La aplicación usa PostgreSQL. Configura la conexión antes de ejecutar Django:
+## Lista de Verificación Pre-Despliegue y Producción
 
-```powershell
-$env:DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/bit_db"
-```
+1. **Aislamiento de Variables Sensibles:**
+   - Copiar `.env.example` a `.env` en el servidor:
+     ```bash
+     cp .env.example .env
+     ```
+   - Configurar `DJANGO_SECRET_KEY`, `DATABASE_URL` y `CORS_ALLOWED_ORIGINS`.
 
-También puedes usar las variables `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`,
-`POSTGRES_HOST` y `POSTGRES_PORT`.
+2. **Ajuste de DEBUG:**
+   - En producción: `DJANGO_DEBUG=False`. Si no se define, `settings.py` asume `False` por defecto.
 
-1. **Instalar dependencias:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+3. **Manejo de Estáticos con WhiteNoise:**
+   - WhiteNoise está configurado en `MIDDLEWARE` y `STATICFILES_STORAGE` con compresión gzip/brotli y caché estricto.
+   - Ejecutar en el servidor:
+     ```bash
+     python manage.py collectstatic --noinput
+     ```
 
-2. **Migraciones:**
-   ```bash
-   python manage.py makemigrations users bits crm
-   python manage.py migrate
-   ```
+4. **Dependencias:**
+   - Archivo `requirements.txt` actualizado con `whitenoise` y `gunicorn`.
 
-3. **Crear Superusuario:**
-   ```bash
-   python manage.py createsuperuser
-   ```
+5. **Pruebas de Seguridad Automatizadas:**
+   - Para correr la suite de pruebas unitarias y de seguridad contra ataques IDOR / fuga de datos:
+     ```bash
+     python manage.py test crm.tests
+     ```
 
-4. **Ejecutar Pruebas Unitarias:**
-   ```bash
-   python manage.py test
-   ```
+---
 
-5. **Iniciar Servidor:**
-   ```bash
-   python manage.py runserver
-   ```
+### Endpoints del CRM React:
 
-El CRM React consume estos endpoints autenticados por token:
-
-- `POST /crm/api/login/`
-- `GET|POST /crm/api/contacts/`
-- `PATCH|DELETE /crm/api/contacts/<id>/`
-- `PATCH /crm/api/contacts/<id>/stage/`
+- `POST /crm/api/login/`: Autenticación por Token.
+- `GET|POST /crm/api/contacts/`: Lista y creación de leads asociados al usuario autenticado.
+- `GET|PATCH|DELETE /crm/api/contacts/<id>/`: Operaciones protegidas por usuario (prevención IDOR).
+- `PATCH /crm/api/contacts/<id>/stage/`: Actualización de estado en el Kanban/Pipeline.
