@@ -21,7 +21,6 @@ import { SalesPipelineView } from './components/views/SalesPipelineView';
 import { NfcHardwareView } from './components/views/NfcHardwareView';
 import { AnalyticsView } from './components/views/AnalyticsView';
 import { BrandingView } from './components/views/BrandingView';
-import { LandingPageView } from './components/views/LandingPageView';
 import { LeadDetailModal } from './components/LeadDetailModal';
 import { NewContactModal } from './components/NewContactModal';
 import { PublicFullScreenProfile } from './components/PublicFullScreenProfile';
@@ -46,8 +45,7 @@ export default function App() {
 
   // 'public_profile' = vista completa web real lista para el dominio sin marcos
   // 'crm' = panel administrativo donde se cambian fotos, links, títulos y textos
-  // 'landing' = landing page de ventas de Bit
-  const [appMode, setAppMode] = useState<'public_profile' | 'crm' | 'landing'>('public_profile');
+  const [appMode, setAppMode] = useState<'public_profile' | 'crm'>('public_profile');
   const [currentTab, setCurrentTab] = useState<NavTabId>('profile');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -218,19 +216,7 @@ export default function App() {
   }
 
   // ==============================================================
-  // 2. LANDING PAGE DE VENTA BIT
-  // ==============================================================
-  if (appMode === 'landing') {
-    return (
-      <LandingPageView
-        user={user}
-        onOpenCrmLogin={() => setAppMode('crm')}
-      />
-    );
-  }
-
-  // ==============================================================
-  // 3. PANEL CRM: PARA CAMBIAR FOTOS, ENLACES, TÍTULOS Y TEXTOS
+  // 2. PANEL CRM: PARA CAMBIAR FOTOS, ENLACES, TÍTULOS Y TEXTOS
   // ==============================================================
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col antialiased text-slate-800">
@@ -243,12 +229,6 @@ export default function App() {
           <span className="text-slate-400 hidden sm:inline">| Edita aquí tu foto, enlaces, títulos y textos</span>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setAppMode('landing')}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition cursor-pointer"
-          >
-            Landing
-          </button>
           <button
             onClick={() => setAppMode('public_profile')}
             className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-sm"
@@ -263,18 +243,11 @@ export default function App() {
         {/* Barra Lateral / Sidebar */}
         <Sidebar
           currentTab={currentTab}
-          onSelectTab={(tab) => {
-            if (tab === 'landing') {
-              setAppMode('landing');
-            } else {
-              setCurrentTab(tab);
-            }
-          }}
+          onSelectTab={(tab) => setCurrentTab(tab)}
           leadsCount={leads.length}
           isOpenMobile={isMobileMenuOpen}
           onCloseMobile={() => setIsMobileMenuOpen(false)}
           onOpenPublicProfile={() => setAppMode('public_profile')}
-          onOpenLandingPage={() => setAppMode('landing')}
           onOpenTrainings={() => setIsTrainingsOpen(true)}
         />
 
@@ -285,7 +258,6 @@ export default function App() {
             currentTab={currentTab}
             onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             onOpenPublicProfile={() => setAppMode('public_profile')}
-            onOpenLandingPage={() => setAppMode('landing')}
             onOpenTrainings={() => setIsTrainingsOpen(true)}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}

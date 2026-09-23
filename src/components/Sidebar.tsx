@@ -25,7 +25,6 @@ export type NavTabId =
   | 'leads' 
   | 'crm' 
   | 'analytics' 
-  | 'landing' 
   | 'settings';
 
 interface SidebarProps {
@@ -35,7 +34,6 @@ interface SidebarProps {
   isOpenMobile: boolean;
   onCloseMobile: () => void;
   onOpenPublicProfile: () => void;
-  onOpenLandingPage?: () => void;
   onOpenTrainings?: () => void;
   onLogout?: () => void;
 }
