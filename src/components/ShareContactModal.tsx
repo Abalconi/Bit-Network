@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
-import { X, Send, User, Phone, Mail, Building2, MessageSquare, CheckCircle2, Sparkles, ShieldCheck } from 'lucide-react';
+import { X, Send, User, Phone, Mail, Building2, MessageSquare, CheckCircle2, Sparkles, ShieldCheck, MessageCircle } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface ShareContactModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: UserProfile;
-  onSuccess?: (contactData: { nombre: string; telefono: string; email: string; empresa: string; mensaje: string }) => void;
+  onSuccess?: (contactData: { 
+    nombre: string; 
+    telefono: string; 
+    email: string; 
+    empresa: string; 
+    mensaje: string; 
+    canal?: string;
+    origen?: string;
+  }) => void;
 }
 
 export const ShareContactModal: React.FC<ShareContactModalProps> = ({
@@ -31,13 +39,21 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
 
     setIsSubmitting(true);
 
+    if (onSuccess) {
+      onSuccess({ 
+        nombre, 
+        telefono, 
+        email, 
+        empresa, 
+        mensaje,
+        canal: 'NFC',
+        origen: 'Formulario Compartir Contacto'
+      });
+    }
+
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSent(true);
-
-      if (onSuccess) {
-        onSuccess({ nombre, telefono, email, empresa, mensaje });
-      }
 
       setTimeout(() => {
         setIsSent(false);
@@ -47,21 +63,44 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
         setEmpresa('');
         setMensaje('');
         onClose();
-      }, 2500);
-    }, 600);
+      }, 2000);
+    }, 400);
   };
 
   const handleSendViaWhatsApp = () => {
+    const leadNombre = nombre.trim() || 'Interesado';
+    const leadTelefono = telefono.trim() || '';
+
+    // Guardar automáticamente en el CRM del usuario en backend
+    if (onSuccess) {
+      onSuccess({
+        nombre: leadNombre,
+        telefono: leadTelefono,
+        email,
+        empresa,
+        mensaje: mensaje || 'Compartió contacto e inició conversación por WhatsApp',
+        canal: 'WhatsApp',
+        origen: 'Compartido por WhatsApp',
+      });
+    }
+
     const rawWa = user.whatsapp ? user.whatsapp.replace(/\D/g, '') : '50255551234';
     const text = encodeURIComponent(
       `Hola ${user.nombre}, te comparto mis datos de contacto tras ver tu Bit:\n\n` +
-      `• Nombre: ${nombre || 'Interesado'}\n` +
-      `• Teléfono/WA: ${telefono || 'No especificado'}\n` +
+      `• Nombre: ${leadNombre}\n` +
+      (leadTelefono ? `• Teléfono/WA: ${leadTelefono}\n` : '') +
       (email ? `• Email: ${email}\n` : '') +
       (empresa ? `• Empresa: ${empresa}\n` : '') +
       (mensaje ? `• Mensaje: ${mensaje}\n` : '')
     );
+
     window.open(`https://wa.me/${rawWa}?text=${text}`, '_blank');
+    setIsSent(true);
+
+    setTimeout(() => {
+      setIsSent(false);
+      onClose();
+    }, 2000);
   };
 
   return (
@@ -98,7 +137,7 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
           </button>
         </div>
 
-        {/* Contenido con Scroll fluido para pantallas pequeñas */}
+        {/* Contenido con Scroll fluido */}
         <div className="p-5 sm:p-6 overflow-y-auto flex-1 overscroll-contain">
           {isSent ? (
             <div className="py-8 text-center space-y-3 animate-in zoom-in-95">
@@ -109,7 +148,7 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
                 ¡Contacto enviado con éxito!
               </h4>
               <p className="text-xs text-slate-600 max-w-xs mx-auto leading-relaxed">
-                Tus datos han sido registrados. {user.nombre} se pondrá en contacto contigo muy pronto.
+                Tus datos han sido enviados. {user.nombre} se pondrá en contacto contigo muy pronto.
               </p>
             </div>
           ) : (
@@ -118,7 +157,7 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
                 Ingresa tus datos a continuación para que <strong className="text-slate-800">{user.nombre.split(' ')[0]}</strong> pueda guardarte en su agenda y darte seguimiento.
               </p>
 
-              {/* Nombre y Teléfono en 2 columnas en pantallas medianas / desktop */}
+              {/* Nombre y Teléfono con soporte de Autofill nativo del teléfono */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
@@ -129,6 +168,7 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
                     <input
                       type="text"
                       required
+                      autoComplete="name"
                       placeholder="Ej. Juan Pérez"
                       value={nombre}
                       onChange={(e) => setNombre(e.target.value)}
@@ -146,6 +186,7 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
                     <input
                       type="tel"
                       required
+                      autoComplete="tel"
                       placeholder="+502 5555 1234"
                       value={telefono}
                       onChange={(e) => setTelefono(e.target.value)}
@@ -155,7 +196,7 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
                 </div>
               </div>
 
-              {/* Email y Empresa en 2 columnas */}
+              {/* Email y Empresa */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
@@ -165,6 +206,7 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="email"
+                      autoComplete="email"
                       placeholder="juan@empresa.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -181,7 +223,8 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
                     <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
-                      placeholder="Ej. Gerente de Innovación"
+                      autoComplete="organization"
+                      placeholder="Ej. Innova Latam"
                       value={empresa}
                       onChange={(e) => setEmpresa(e.target.value)}
                       className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50/60 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:bg-white transition"
@@ -208,7 +251,7 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
               </div>
 
               {/* Botones de acción */}
-              <div className="pt-2 flex flex-col gap-2">
+              <div className="pt-2 flex flex-col gap-2.5">
                 <button
                   type="submit"
                   disabled={isSubmitting}
@@ -218,15 +261,14 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
                   <span>{isSubmitting ? 'Enviando...' : `Enviar mi contacto a ${user.nombre.split(' ')[0]}`}</span>
                 </button>
 
-                {telefono && (
-                  <button
-                    type="button"
-                    onClick={handleSendViaWhatsApp}
-                    className="w-full py-2.5 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>O enviar directamente por WhatsApp</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={handleSendViaWhatsApp}
+                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95"
+                >
+                  <MessageCircle className="w-4 h-4 fill-current" />
+                  <span>Enviar directamente por WhatsApp</span>
+                </button>
               </div>
 
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 pt-1 pb-1">

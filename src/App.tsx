@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   INITIAL_USER_PROFILE, 
   INITIAL_BIT_DEVICE, 
@@ -12,6 +12,7 @@ import {
   ActivityItem, 
   ContactStage 
 } from './types';
+import * as crmApi from './services/crmApi';
 import { Sidebar, NavTabId } from './components/Sidebar';
 import { Header } from './components/Header';
 import { DashboardView } from './components/views/DashboardView';
@@ -40,8 +41,51 @@ export default function App() {
   });
 
   const [device, setDevice] = useState<BitDevice>(INITIAL_BIT_DEVICE);
-  const [leads, setLeads] = useState<CrmLead[]>(INITIAL_LEADS);
+
+  // Leads con persistencia offline-first en localStorage
+  const [leads, setLeads] = useState<CrmLead[]>(() => {
+    try {
+      const saved = localStorage.getItem('bit_crm_leads');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error('Error loading leads from storage', e);
+    }
+    return INITIAL_LEADS;
+  });
+
   const [activities, setActivities] = useState<ActivityItem[]>(INITIAL_ACTIVITY);
+
+  // Sincronizar leads con el backend de Django en Railway y Supabase al cargar
+  useEffect(() => {
+    let isMounted = true;
+    crmApi.listContacts()
+      .then((serverLeads) => {
+        if (isMounted && serverLeads && serverLeads.length > 0) {
+          setLeads(prev => {
+            const map = new Map<string, CrmLead>();
+            // Primero cargamos los contactos de la base de datos
+            serverLeads.forEach(l => map.set(l.id, l));
+            // Agregamos los que ya teníamos para no perder nada
+            prev.forEach(l => {
+              if (!map.has(l.id)) map.set(l.id, l);
+            });
+            const merged = Array.from(map.values());
+            try {
+              localStorage.setItem('bit_crm_leads', JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn('Conectando con base de datos local y remota:', err);
+      });
+
+    return () => { isMounted = false; };
+  }, []);
 
   // 'public_profile' = vista completa web real lista para el dominio sin marcos
   // 'crm' = panel administrativo donde se cambian fotos, links, títulos y textos
@@ -76,16 +120,17 @@ export default function App() {
     showToast('Cambios guardados con éxito');
   };
 
-  // Agregar nuevo lead (vía formulario de compartir contacto o manual)
-  const handleAddNewLead = (newLeadData: Partial<CrmLead> & { notas?: string }) => {
+  // Agregar nuevo lead (vía formulario de compartir contacto, WhatsApp o manual)
+  const handleAddNewLead = async (newLeadData: Partial<CrmLead> & { notas?: string; canal?: string; origen?: string }) => {
+    const tempId = `lead-${Date.now()}`;
     const newLead: CrmLead = {
-      id: `lead-${Date.now()}`,
+      id: tempId,
       nombre: newLeadData.nombre || 'Nuevo Contacto',
       email: newLeadData.email || '',
       telefono: newLeadData.telefono || '',
       empresa: newLeadData.empresa || '',
       cargo: newLeadData.cargo || '',
-      canal: newLeadData.canal || 'NFC',
+      canal: (newLeadData.canal || (newLeadData.origen?.includes('WhatsApp') ? 'WhatsApp' : 'NFC')) as CrmLead['canal'],
       estatus: newLeadData.estatus || 'Nuevo',
       origen: newLeadData.origen || 'Perfil público Bit',
       fecha: 'Hoy',
@@ -101,27 +146,72 @@ export default function App() {
       }] : []
     };
 
-    setLeads(prev => [newLead, ...prev]);
+    // Actualizar estado y almacenamiento local de inmediato para que NUNCA se pierda al refrescar
+    setLeads(prev => {
+      const updated = [newLead, ...prev];
+      try {
+        localStorage.setItem('bit_crm_leads', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error saving to localStorage', e);
+      }
+      return updated;
+    });
 
     const newActivity: ActivityItem = {
       id: `act-${Date.now()}`,
       tipo: 'contacto',
       titulo: `${newLead.nombre} envió sus datos`,
-      detalle: `Nuevo contacto registrado desde el perfil web · hace un momento`,
+      detalle: `${newLead.origen} · hace un momento`,
       fecha: 'Hoy',
     };
     setActivities(prev => [newActivity, ...prev]);
 
     showToast(`¡Contacto recibido! ${newLead.nombre} guardado en el CRM`);
+
+    // Sincronizar en segundo plano con el backend de Django en Railway y Supabase
+    try {
+      const savedLead = await crmApi.createContact({
+        nombre: newLead.nombre,
+        email: newLead.email,
+        telefono: newLead.telefono,
+        empresa: newLead.empresa,
+        cargo: newLead.cargo,
+        origen: newLead.origen,
+        canal: newLead.canal,
+        notas: newLeadData.notas || '',
+      });
+
+      if (savedLead && savedLead.id) {
+        setLeads(prev => {
+          const replaced = prev.map(l => l.id === tempId ? savedLead : l);
+          try {
+            localStorage.setItem('bit_crm_leads', JSON.stringify(replaced));
+          } catch {}
+          return replaced;
+        });
+      }
+    } catch (err) {
+      console.warn('Contacto preservado en almacenamiento local:', err);
+    }
   };
 
   // Actualizar etapa de lead en CRM
   const handleUpdateLeadStage = (leadId: string, newStage: ContactStage) => {
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, estatus: newStage } : l));
+    setLeads(prev => {
+      const updated = prev.map(l => l.id === leadId ? { ...l, estatus: newStage } : l);
+      try {
+        localStorage.setItem('bit_crm_leads', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
     if (selectedLead && selectedLead.id === leadId) {
       setSelectedLead(prev => prev ? { ...prev, estatus: newStage } : null);
     }
     showToast(`Etapa actualizada a: ${newStage}`);
+
+    crmApi.updateContactStage(leadId, newStage).catch(err => {
+      console.warn('Error sincronizando etapa en el backend:', err);
+    });
   };
 
   // Agregar nota a un lead
@@ -165,7 +255,13 @@ export default function App() {
 
   // Eliminar lead
   const handleDeleteLead = (leadId: string) => {
-    setLeads(prev => prev.filter(l => l.id !== leadId));
+    setLeads(prev => {
+      const updated = prev.filter(l => l.id !== leadId);
+      try {
+        localStorage.setItem('bit_crm_leads', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
     if (selectedLead && selectedLead.id === leadId) {
       setSelectedLead(null);
     }
@@ -201,14 +297,14 @@ export default function App() {
         user={user}
         onOpenCrm={() => setAppMode('crm')}
         onUpdateUser={handleUpdateUser}
-        onLeadCapture={(leadData) => {
+        onLeadCapture={(leadData: any) => {
           handleAddNewLead({
             nombre: leadData.nombre,
             telefono: leadData.telefono,
             email: leadData.email,
             empresa: leadData.empresa,
-            origen: 'Perfil público Bit',
-            canal: 'NFC',
+            origen: leadData.origen || (leadData.canal === 'WhatsApp' ? 'Compartido por WhatsApp' : 'Perfil público Bit'),
+            canal: leadData.canal || (leadData.origen?.includes('WhatsApp') ? 'WhatsApp' : 'NFC'),
             notas: leadData.mensaje
           });
         }}

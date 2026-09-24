@@ -49,6 +49,42 @@ class ContactListCreateAPIView(APIView):
         return Response(ContactSerializer(contact).data, status=status.HTTP_201_CREATED)
 
 
+class PublicCaptureAPIView(APIView):
+    """
+    Endpoint público para capturar prospectos desde WhatsApp, NFC o formularios públicos.
+    No requiere autenticación previa.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        nombre = request.data.get('nombre', '').strip() or 'Contacto WhatsApp / Interesado'
+        email = request.data.get('email', '').strip()
+        telefono = request.data.get('telefono', '').strip()
+        empresa = request.data.get('empresa', '').strip()
+        cargo = request.data.get('cargo', '').strip()
+        origen = request.data.get('origen', '').strip() or 'Compartido por WhatsApp'
+        notas = request.data.get('notas', '') or request.data.get('mensaje', '')
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        owner = User.objects.filter(is_superuser=True).first() or User.objects.first()
+
+        contact = Contact.objects.create(
+            user=owner,
+            nombre=nombre,
+            email=email,
+            telefono=telefono,
+            whatsapp=telefono if 'whatsapp' in origen.lower() else '',
+            empresa=empresa,
+            cargo=cargo,
+            origen=origen,
+            notas=notas,
+            estado=Contact.Stage.NUEVO,
+        )
+
+        return Response(ContactSerializer(contact).data, status=status.HTTP_201_CREATED)
+
+
 class ContactDetailAPIView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]

@@ -28,10 +28,13 @@ import { ProfileSectionDetailModal } from './ProfileSectionDetailModal';
 interface ClientProfileShowcaseProps {
   user: UserProfile;
   onSimulateNfcTap?: () => void;
+  onLeadCapture?: (lead: any) => void;
 }
 
 export const ClientProfileShowcase: React.FC<ClientProfileShowcaseProps> = ({
   user,
+  onSimulateNfcTap,
+  onLeadCapture,
 }) => {
   const [downloadedVcard, setDownloadedVcard] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -777,9 +780,7 @@ export const ClientProfileShowcase: React.FC<ClientProfileShowcaseProps> = ({
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         user={user}
-        onSuccess={() => {
-          // El modal da feedback propio
-        }}
+        onSuccess={onLeadCapture}
       />
 
       {/* Modal para Ver Detalles de Sección (Sobre mí, Mi trabajo, Contáctame) */}

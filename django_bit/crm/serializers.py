@@ -40,8 +40,19 @@ class ContactSerializer(serializers.ModelSerializer):
         return obj.nombre[:1].upper()
 
     def create(self, validated_data):
+        user = None
+        if self.context.get('request') and hasattr(self.context['request'], 'user') and self.context['request'].user.is_authenticated:
+            user = self.context['request'].user
+        else:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.filter(is_superuser=True).first() or User.objects.first()
+            
+        if not user:
+            raise serializers.ValidationError('No se encontró un usuario en el sistema para asociar el contacto.')
+
         return Contact.objects.create(
-            user=self.context['request'].user,
+            user=user,
             **validated_data,
         )
 
