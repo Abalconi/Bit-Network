@@ -1,4 +1,6 @@
 import { UserProfile, BitDevice, CrmLead, ActivityItem } from '../types';
+import avatarImg from '../assets/images/alessandra_balconi_avatar_1790194941845.jpg';
+import coverImg from '../assets/images/guatemala_volcano_cover_1790194928574.jpg';
 
 export const INITIAL_USER_PROFILE: UserProfile = {
   id: 'usr-alessandra-01',
@@ -8,8 +10,8 @@ export const INITIAL_USER_PROFILE: UserProfile = {
   empresa: 'Data & Tech Solutions',
   tagline: 'Data & Tech | Business Intelligence | Travel',
   descripcion: 'Especialista en analítica predictiva, arquitectura de datos y crecimiento empresarial. Conectando personas y tecnología para transformar decisiones complejas en resultados claros.',
-  avatarUrl: '/src/assets/images/alessandra_balconi_avatar_1790194941845.jpg',
-  coverUrl: '/src/assets/images/guatemala_volcano_cover_1790194928574.jpg',
+  avatarUrl: avatarImg,
+  coverUrl: coverImg,
   telefono: '+502 5555 1234',
   whatsapp: '+502 5555 1234',
   ubicacion: 'Ciudad de Guatemala, GT',

@@ -34,7 +34,18 @@ export default function App() {
   const [user, setUser] = useState<UserProfile>(() => {
     try {
       const saved = localStorage.getItem('bit_user_profile');
-      return saved ? JSON.parse(saved) : INITIAL_USER_PROFILE;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Si tiene la ruta rota antigua de desarrollo, migrar a la imagen válida empaquetada
+        if (!parsed.avatarUrl || parsed.avatarUrl.startsWith('/src/assets/')) {
+          parsed.avatarUrl = INITIAL_USER_PROFILE.avatarUrl;
+        }
+        if (!parsed.coverUrl || parsed.coverUrl.startsWith('/src/assets/')) {
+          parsed.coverUrl = INITIAL_USER_PROFILE.coverUrl;
+        }
+        return parsed;
+      }
+      return INITIAL_USER_PROFILE;
     } catch {
       return INITIAL_USER_PROFILE;
     }

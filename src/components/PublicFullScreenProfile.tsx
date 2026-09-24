@@ -205,11 +205,26 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
         
         {/* Avatar grande centrado con botón de subida */}
         <div className="relative group/avatar">
-          <img
-            src={user.avatarUrl}
-            alt={user.nombre}
-            className="w-32 h-32 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-[5px] sm:border-[6px] border-white shadow-2xl bg-white"
-          />
+          {user.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={user.nombre}
+              className="w-32 h-32 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-[5px] sm:border-[6px] border-white shadow-2xl bg-indigo-50"
+              onError={(e) => {
+                // Si la imagen falla en cargar, reemplazar por avatar SVG estilizado
+                e.currentTarget.style.display = 'none';
+                const fallback = document.getElementById('avatar-fallback');
+                if (fallback) fallback.style.display = 'flex';
+              }}
+            />
+          ) : null}
+          <div
+            id="avatar-fallback"
+            style={{ display: user.avatarUrl ? 'none' : 'flex' }}
+            className="w-32 h-32 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full border-[5px] sm:border-[6px] border-white shadow-2xl bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-extrabold text-4xl sm:text-5xl items-center justify-center select-none"
+          >
+            {user.nombre ? user.nombre.charAt(0).toUpperCase() : 'A'}
+          </div>
 
           {/* Botón directo para subir/cambiar foto de perfil */}
           {onUpdateUser && (
