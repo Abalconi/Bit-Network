@@ -181,14 +181,17 @@ REST_FRAMEWORK = {
 # ==============================================================================
 # 8. CORS HEADERS
 # ==============================================================================
-CORS_ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get(
-        'CORS_ALLOWED_ORIGINS',
-        'http://localhost:3000,http://127.0.0.1:3000',
-    ).split(',')
-    if origin.strip()
-]
+if os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False').lower() in ('true', '1'):
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOWED_ORIGINS = [
+        origin.strip()
+        for origin in os.environ.get(
+            'CORS_ALLOWED_ORIGINS',
+            'http://localhost:3000,http://127.0.0.1:3000',
+        ).split(',')
+        if origin.strip()
+    ]
 
 # ==============================================================================
 # 9. CABECERAS Y FLAGS DE SEGURIDAD EN PRODUCCIÓN
