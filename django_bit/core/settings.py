@@ -181,11 +181,17 @@ REST_FRAMEWORK = {
 # ==============================================================================
 # 8. CORS HEADERS
 # ==============================================================================
+def _normalize_origin(origin: str) -> str:
+    cleaned = origin.strip().rstrip('/')
+    if cleaned and not (cleaned.startswith('http://') or cleaned.startswith('https://')):
+        return f'https://{cleaned}'
+    return cleaned
+
 if os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False').lower() in ('true', '1'):
     CORS_ALLOW_ALL_ORIGINS = True
 else:
     CORS_ALLOWED_ORIGINS = [
-        origin.strip()
+        _normalize_origin(origin)
         for origin in os.environ.get(
             'CORS_ALLOWED_ORIGINS',
             'http://localhost:3000,http://127.0.0.1:3000',
