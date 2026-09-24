@@ -200,6 +200,7 @@ export default function App() {
       <PublicFullScreenProfile 
         user={user}
         onOpenCrm={() => setAppMode('crm')}
+        onUpdateUser={handleUpdateUser}
         onLeadCapture={(leadData) => {
           handleAddNewLead({
             nombre: leadData.nombre,

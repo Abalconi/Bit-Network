@@ -3,6 +3,39 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Defensive guard against browser extension injection collisions (MetaMask, Phantom, etc.)
+      (function() {
+        try {
+          var origDefineProperty = Object.defineProperty;
+          Object.defineProperty = function(target, prop, descriptor) {
+            if (target === window && prop === 'ethereum') {
+              if (descriptor && typeof descriptor === 'object') {
+                descriptor.configurable = true;
+                descriptor.writable = true;
+              }
+              try {
+                return origDefineProperty.call(this, target, prop, descriptor);
+              } catch (_) {
+                return target;
+              }
+            }
+            return origDefineProperty.apply(this, arguments);
+          };
+
+          window.addEventListener('error', function(e) {
+            if (e && e.message && (
+              e.message.indexOf('ethereum') !== -1 ||
+              e.message.indexOf('redefining provider') !== -1
+            )) {
+              e.stopImmediatePropagation();
+              e.preventDefault();
+              return true;
+            }
+          }, true);
+        } catch (_) {}
+      })();
+    </script>
     <title>Alessandra Balconi | Bit</title>
     <meta name="description" content="Perfil público Bit de Alessandra Balconi. Conecta, guarda el contacto en tu teléfono o comparte tus datos." />
     <meta property="og:title" content="Alessandra Balconi | Bit" />

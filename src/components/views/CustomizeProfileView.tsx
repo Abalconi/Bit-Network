@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   User, 
   Image, 
@@ -12,14 +12,22 @@ import {
   Trash2, 
   Save, 
   Globe, 
-  Eye,
-  RefreshCw,
-  Phone,
-  Mail,
-  MapPin,
-  Building
+  Eye, 
+  RefreshCw, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  Building,
+  Upload,
+  Camera,
+  Loader2,
+  AlertCircle,
+  RotateCcw,
+  CheckCircle2,
+  Layers
 } from 'lucide-react';
 import { UserProfile } from '../../types';
+import { processUploadedImage } from '../../utils/imageUpload';
 
 interface CustomizeProfileViewProps {
   user: UserProfile;
@@ -36,7 +44,90 @@ export const CustomizeProfileView: React.FC<CustomizeProfileViewProps> = ({
   const [activeTab, setActiveTab] = useState<'general' | 'links' | 'sections'>('general');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  // Guardar cambios en el perfil
+  // Estados de subida y arrastre de fotos
+  const [isProcessingCover, setIsProcessingCover] = useState(false);
+  const [isProcessingAvatar, setIsProcessingAvatar] = useState(false);
+  const [isDraggingCover, setIsDraggingCover] = useState(false);
+  const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Modos de entrada (archivo o URL)
+  const [coverInputMode, setCoverInputMode] = useState<'upload' | 'url'>('upload');
+  const [avatarInputMode, setAvatarInputMode] = useState<'upload' | 'url'>('upload');
+
+  // Referencias a inputs de archivos ocultos
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sincronizar formData si el usuario cambia externamente
+  useEffect(() => {
+    setFormData(user);
+  }, [user]);
+
+  const showUploadFeedback = (msg: string) => {
+    setUploadMessage(msg);
+    setUploadError(null);
+    setTimeout(() => setUploadMessage(null), 3500);
+  };
+
+  const showUploadErrorMsg = (err: string) => {
+    setUploadError(err);
+    setUploadMessage(null);
+    setTimeout(() => setUploadError(null), 5000);
+  };
+
+  // Procesar archivo de portada subido por el cliente
+  const handleCoverFileSelected = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      showUploadErrorMsg('Por favor selecciona un archivo de imagen válido (JPG, PNG, WebP).');
+      return;
+    }
+
+    setIsProcessingCover(true);
+    setUploadError(null);
+
+    try {
+      const optimizedUrl = await processUploadedImage(file, { maxDimension: 1600, quality: 0.88 });
+      setFormData(prev => ({ ...prev, coverUrl: optimizedUrl }));
+      onUpdateUser({ coverUrl: optimizedUrl });
+      showUploadFeedback('¡Foto de fondo actualizada y guardada con éxito!');
+    } catch (err: any) {
+      showUploadErrorMsg(err?.message || 'Error al procesar la foto de fondo.');
+    } finally {
+      setIsProcessingCover(false);
+      if (coverFileInputRef.current) {
+        coverFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Procesar archivo de avatar subido por el cliente
+  const handleAvatarFileSelected = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      showUploadErrorMsg('Por favor selecciona un archivo de imagen válido (JPG, PNG, WebP).');
+      return;
+    }
+
+    setIsProcessingAvatar(true);
+    setUploadError(null);
+
+    try {
+      const optimizedUrl = await processUploadedImage(file, { maxDimension: 800, quality: 0.90 });
+      setFormData(prev => ({ ...prev, avatarUrl: optimizedUrl }));
+      onUpdateUser({ avatarUrl: optimizedUrl });
+      showUploadFeedback('¡Foto de perfil actualizada y guardada con éxito!');
+    } catch (err: any) {
+      showUploadErrorMsg(err?.message || 'Error al procesar la foto de perfil.');
+    } finally {
+      setIsProcessingAvatar(false);
+      if (avatarFileInputRef.current) {
+        avatarFileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Guardar cambios generales en el perfil
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateUser(formData);
@@ -135,86 +226,343 @@ export const CustomizeProfileView: React.FC<CustomizeProfileViewProps> = ({
             
             {/* Fotos (Avatar y Portada) */}
             <div className="p-6 bg-white rounded-2xl border border-slate-200/90 shadow-xs space-y-6">
-              <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                <Image className="w-4 h-4 text-indigo-600" />
-                <span>Imágenes de Perfil y Portada</span>
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+                    <Image className="w-4 h-4 text-indigo-600" />
+                    <span>Imágenes de Perfil y Portada</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Sube tus propias fotos desde tu celular o computadora para personalizar tu perfil digital.
+                  </p>
+                </div>
+                
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/60 self-start sm:self-auto flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Subida directa habilitada
+                </span>
+              </div>
 
-              {/* Vista previa combinada */}
-              <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 h-44">
+              {/* Mensajes de notificación de subida */}
+              {uploadMessage && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>{uploadMessage}</span>
+                </div>
+              )}
+
+              {uploadError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200">
+                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
+
+              {/* Inputs de archivo ocultos accesibles programáticamente */}
+              <input
+                ref={coverFileInputRef}
+                type="file"
+                accept="image/png, image/jpeg, image/webp, image/jpg"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleCoverFileSelected(file);
+                }}
+              />
+              <input
+                ref={avatarFileInputRef}
+                type="file"
+                accept="image/png, image/jpeg, image/webp, image/jpg"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleAvatarFileSelected(file);
+                }}
+              />
+
+              {/* Vista previa interactiva combinada */}
+              <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 h-48 sm:h-56 group shadow-inner">
                 <img
                   src={formData.coverUrl}
                   alt="Vista previa portada"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition duration-300 group-hover:scale-[1.01]"
                 />
-                <div className="absolute inset-0 bg-black/20" />
-                <div className="absolute bottom-3 left-4 flex items-center gap-3">
-                  <img
-                    src={formData.avatarUrl}
-                    alt="Vista previa avatar"
-                    className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md bg-white"
-                  />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/20" />
+                
+                {/* Botón flotante para cambiar foto de fondo directamente */}
+                <button
+                  type="button"
+                  onClick={() => coverFileInputRef.current?.click()}
+                  disabled={isProcessingCover}
+                  className="absolute top-3 right-3 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-slate-900/80 hover:bg-slate-950 text-white text-xs font-bold backdrop-blur-md border border-white/20 shadow-lg transition active:scale-95 cursor-pointer flex items-center gap-2"
+                >
+                  {isProcessingCover ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                  ) : (
+                    <Camera className="w-3.5 h-3.5 text-blue-400" />
+                  )}
+                  <span>Cambiar Foto de Fondo</span>
+                </button>
+
+                {/* Avatar y Datos superpuestos */}
+                <div className="absolute bottom-3 left-4 flex items-center gap-3.5">
+                  <div className="relative group/avatar">
+                    <img
+                      src={formData.avatarUrl}
+                      alt="Vista previa avatar"
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-3 border-white shadow-xl bg-white"
+                    />
+                    {/* Botón flotante para cambiar avatar */}
+                    <button
+                      type="button"
+                      onClick={() => avatarFileInputRef.current?.click()}
+                      disabled={isProcessingAvatar}
+                      className="absolute -bottom-1 -right-1 p-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg border-2 border-white transition active:scale-95 cursor-pointer"
+                      title="Subir foto de perfil"
+                    >
+                      {isProcessingAvatar ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Camera className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
                   <div className="text-white drop-shadow">
-                    <p className="font-black text-sm">{formData.nombre || 'Tu Nombre'}</p>
-                    <p className="text-xs text-white/80">{formData.tagline || 'Especialidad / Cargo'}</p>
+                    <p className="font-black text-sm sm:text-base leading-tight">{formData.nombre || 'Tu Nombre'}</p>
+                    <p className="text-xs text-white/90 font-medium">{formData.tagline || 'Especialidad / Cargo'}</p>
+                    <p className="text-[11px] text-blue-200 hidden sm:block mt-0.5">
+                      Haz clic en los botones de cámara para subir fotos nuevas
+                    </p>
                   </div>
                 </div>
               </div>
 
+              {/* Paneles de Configuración Individual: Fondo y Perfil */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                 
-                {/* URL de Portada */}
-                <div className="space-y-2">
-                  <label className="font-bold text-xs text-slate-700 block">
-                    URL de la Foto de Portada
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.coverUrl}
-                    onChange={(e) => setFormData({ ...formData, coverUrl: e.target.value })}
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    placeholder="https://images.unsplash.com/..."
-                  />
-                  <div className="flex items-center gap-1.5 pt-1">
-                    <span className="text-[11px] text-slate-400">Predefinidas:</span>
-                    {coverPresets.map((preset, idx) => (
+                {/* ============================================================== */}
+                {/* 1. SECCIÓN FOTO DE FONDO / PORTADA                              */}
+                {/* ============================================================== */}
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                      <Image className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Foto de Fondo (Portada)</span>
+                    </label>
+
+                    {/* Alternador Subir Archivo vs URL */}
+                    <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 text-[11px]">
                       <button
-                        key={idx}
                         type="button"
-                        onClick={() => setFormData({ ...formData, coverUrl: preset })}
-                        className="w-5 h-5 rounded-full overflow-hidden border border-slate-300 hover:scale-110 transition cursor-pointer"
+                        onClick={() => setCoverInputMode('upload')}
+                        className={`px-2 py-0.5 rounded-md font-bold transition cursor-pointer ${
+                          coverInputMode === 'upload' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                        }`}
                       >
-                        <img src={preset} alt="" className="w-full h-full object-cover" />
+                        Subir archivo
                       </button>
-                    ))}
+                      <button
+                        type="button"
+                        onClick={() => setCoverInputMode('url')}
+                        className={`px-2 py-0.5 rounded-md font-bold transition cursor-pointer ${
+                          coverInputMode === 'url' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        URL / Galería
+                      </button>
+                    </div>
                   </div>
+
+                  {coverInputMode === 'upload' ? (
+                    /* Zona de Subida y Arrastre para Fondo */
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDraggingCover(true);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        setIsDraggingCover(false);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDraggingCover(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleCoverFileSelected(file);
+                      }}
+                      className={`p-4 border-2 border-dashed rounded-xl transition flex flex-col items-center justify-center text-center cursor-pointer ${
+                        isDraggingCover 
+                          ? 'border-indigo-500 bg-indigo-50/80 ring-2 ring-indigo-200' 
+                          : 'border-slate-300 hover:border-indigo-400 bg-white'
+                      }`}
+                      onClick={() => coverFileInputRef.current?.click()}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2 shadow-xs">
+                        {isProcessingCover ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Upload className="w-5 h-5" />
+                        )}
+                      </div>
+                      <p className="font-bold text-xs text-slate-800">
+                        {isProcessingCover ? 'Optimizando foto...' : 'Selecciona o arrastra una foto de fondo'}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        JPG, PNG, WebP · Tamaño ideal: 1400×600 px
+                      </p>
+
+                      <button
+                        type="button"
+                        disabled={isProcessingCover}
+                        className="mt-3 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>Subir desde tu equipo</span>
+                      </button>
+                    </div>
+                  ) : (
+                    /* Entrada manual de URL y Predefinidas para Fondo */
+                    <div className="space-y-3 bg-white p-3.5 rounded-xl border border-slate-200">
+                      <div>
+                        <input
+                          type="url"
+                          value={formData.coverUrl}
+                          onChange={(e) => setFormData({ ...formData, coverUrl: e.target.value })}
+                          className="w-full px-3 py-2 text-xs rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          placeholder="https://..."
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 pt-1 flex-wrap">
+                        <span className="text-[11px] font-semibold text-slate-400">Predefinidas:</span>
+                        {coverPresets.map((preset, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, coverUrl: preset });
+                              onUpdateUser({ coverUrl: preset });
+                            }}
+                            className="w-6 h-6 rounded-md overflow-hidden border border-slate-300 hover:scale-110 transition cursor-pointer shadow-xs"
+                            title={`Seleccionar fondo ${idx + 1}`}
+                          >
+                            <img src={preset} alt="" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* URL de Foto de Perfil / Avatar */}
-                <div className="space-y-2">
-                  <label className="font-bold text-xs text-slate-700 block">
-                    URL de la Foto de Perfil (Avatar)
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.avatarUrl}
-                    onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    placeholder="https://images.unsplash.com/..."
-                  />
-                  <div className="flex items-center gap-1.5 pt-1">
-                    <span className="text-[11px] text-slate-400">Predefinidas:</span>
-                    {avatarPresets.map((preset, idx) => (
+                {/* ============================================================== */}
+                {/* 2. SECCIÓN FOTO DE PERFIL (AVATAR)                             */}
+                {/* ============================================================== */}
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Foto de Perfil (Avatar)</span>
+                    </label>
+
+                    {/* Alternador Subir Archivo vs URL */}
+                    <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 text-[11px]">
                       <button
-                        key={idx}
                         type="button"
-                        onClick={() => setFormData({ ...formData, avatarUrl: preset })}
-                        className="w-5 h-5 rounded-full overflow-hidden border border-slate-300 hover:scale-110 transition cursor-pointer"
+                        onClick={() => setAvatarInputMode('upload')}
+                        className={`px-2 py-0.5 rounded-md font-bold transition cursor-pointer ${
+                          avatarInputMode === 'upload' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                        }`}
                       >
-                        <img src={preset} alt="" className="w-full h-full object-cover" />
+                        Subir archivo
                       </button>
-                    ))}
+                      <button
+                        type="button"
+                        onClick={() => setAvatarInputMode('url')}
+                        className={`px-2 py-0.5 rounded-md font-bold transition cursor-pointer ${
+                          avatarInputMode === 'url' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        URL / Galería
+                      </button>
+                    </div>
                   </div>
+
+                  {avatarInputMode === 'upload' ? (
+                    /* Zona de Subida y Arrastre para Avatar */
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDraggingAvatar(true);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        setIsDraggingAvatar(false);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDraggingAvatar(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleAvatarFileSelected(file);
+                      }}
+                      className={`p-4 border-2 border-dashed rounded-xl transition flex flex-col items-center justify-center text-center cursor-pointer ${
+                        isDraggingAvatar 
+                          ? 'border-indigo-500 bg-indigo-50/80 ring-2 ring-indigo-200' 
+                          : 'border-slate-300 hover:border-indigo-400 bg-white'
+                      }`}
+                      onClick={() => avatarFileInputRef.current?.click()}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mb-2 shadow-xs">
+                        {isProcessingAvatar ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Upload className="w-5 h-5" />
+                        )}
+                      </div>
+                      <p className="font-bold text-xs text-slate-800">
+                        {isProcessingAvatar ? 'Optimizando foto...' : 'Selecciona o arrastra tu foto de perfil'}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        JPG, PNG, WebP · Tamaño ideal: cuadrada o retrato 1:1
+                      </p>
+
+                      <button
+                        type="button"
+                        disabled={isProcessingAvatar}
+                        className="mt-3 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition active:scale-95 cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>Subir desde tu equipo</span>
+                      </button>
+                    </div>
+                  ) : (
+                    /* Entrada manual de URL y Predefinidas para Avatar */
+                    <div className="space-y-3 bg-white p-3.5 rounded-xl border border-slate-200">
+                      <div>
+                        <input
+                          type="url"
+                          value={formData.avatarUrl}
+                          onChange={(e) => setFormData({ ...formData, avatarUrl: e.target.value })}
+                          className="w-full px-3 py-2 text-xs rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          placeholder="https://..."
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 pt-1 flex-wrap">
+                        <span className="text-[11px] font-semibold text-slate-400">Predefinidas:</span>
+                        {avatarPresets.map((preset, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setFormData({ ...formData, avatarUrl: preset });
+                              onUpdateUser({ avatarUrl: preset });
+                            }}
+                            className="w-6 h-6 rounded-full overflow-hidden border border-slate-300 hover:scale-110 transition cursor-pointer shadow-xs"
+                            title={`Seleccionar avatar ${idx + 1}`}
+                          >
+                            <img src={preset} alt="" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
               </div>

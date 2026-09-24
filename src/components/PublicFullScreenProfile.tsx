@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   User, 
   Briefcase, 
@@ -12,26 +12,80 @@ import {
   Building2,
   MapPin,
   Check,
-  Edit3
+  Edit3,
+  Camera,
+  Loader2,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { ShareContactModal } from './ShareContactModal';
 import { ProfileSectionDetailModal } from './ProfileSectionDetailModal';
+import { processUploadedImage } from '../utils/imageUpload';
 
 interface PublicFullScreenProfileProps {
   user: UserProfile;
   onOpenCrm?: () => void;
+  onUpdateUser?: (updated: Partial<UserProfile>) => void;
   onLeadCapture?: (lead: { nombre: string; telefono: string; email: string; empresa: string; mensaje: string }) => void;
 }
 
 export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = ({
   user,
   onOpenCrm,
+  onUpdateUser,
   onLeadCapture
 }) => {
   const [downloadedVcard, setDownloadedVcard] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [activeDetailSection, setActiveDetailSection] = useState<'sobreMi' | 'miTrabajo' | 'contactame' | null>(null);
+
+  // Estados de subida directa de fotos desde el perfil público
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [photoFeedback, setPhotoFeedback] = useState<string | null>(null);
+
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  const showQuickFeedback = (msg: string) => {
+    setPhotoFeedback(msg);
+    setTimeout(() => setPhotoFeedback(null), 3500);
+  };
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUpdateUser) return;
+
+    setIsUploadingCover(true);
+    try {
+      const optimizedUrl = await processUploadedImage(file, { maxDimension: 1600, quality: 0.88 });
+      onUpdateUser({ coverUrl: optimizedUrl });
+      showQuickFeedback('¡Foto de fondo actualizada!');
+    } catch (err: any) {
+      alert(err?.message || 'Error al procesar la foto de fondo');
+    } finally {
+      setIsUploadingCover(false);
+      if (coverInputRef.current) coverInputRef.current.value = '';
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUpdateUser) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      const optimizedUrl = await processUploadedImage(file, { maxDimension: 800, quality: 0.90 });
+      onUpdateUser({ avatarUrl: optimizedUrl });
+      showQuickFeedback('¡Foto de perfil actualizada!');
+    } catch (err: any) {
+      alert(err?.message || 'Error al procesar la foto de perfil');
+    } finally {
+      setIsUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
 
   // Descarga real de archivo vCard (.vcf)
   const handleDownloadVCard = () => {
@@ -65,6 +119,30 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
   return (
     <div className="min-h-screen w-full bg-white text-slate-900 flex flex-col justify-between selection:bg-indigo-100 selection:text-indigo-900">
       
+      {/* Inputs de subida ocultos */}
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/png, image/jpeg, image/webp, image/jpg"
+        className="hidden"
+        onChange={handleCoverUpload}
+      />
+      <input
+        ref={avatarInputRef}
+        type="file"
+        accept="image/png, image/jpeg, image/webp, image/jpg"
+        className="hidden"
+        onChange={handleAvatarUpload}
+      />
+
+      {/* Notificación flotante de foto actualizada */}
+      {photoFeedback && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-slate-900/90 text-white font-bold text-xs backdrop-blur-md shadow-2xl border border-white/20 flex items-center gap-2 animate-in fade-in duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <span>{photoFeedback}</span>
+        </div>
+      )}
+
       {/* Botón flotante para acceder a editar datos desde el CRM */}
       {onOpenCrm && (
         <button
@@ -80,7 +158,7 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
       {/* ============================================================== */}
       {/* 1. PORTADA FULL WIDTH WEB CON RECORTE CURVO INFERIOR           */}
       {/* ============================================================== */}
-      <div className="relative w-full h-64 sm:h-80 md:h-96 lg:h-[420px] overflow-hidden bg-slate-900">
+      <div className="relative w-full h-64 sm:h-80 md:h-96 lg:h-[420px] overflow-hidden bg-slate-900 group">
         <img
           src={user.coverUrl}
           alt="Portada"
@@ -89,6 +167,24 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
         
         {/* Degradado para dar profundidad visual */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/40" />
+
+        {/* Botón directo para subir/cambiar foto de fondo */}
+        {onUpdateUser && (
+          <button
+            type="button"
+            onClick={() => coverInputRef.current?.click()}
+            disabled={isUploadingCover}
+            className="absolute top-4 left-4 z-30 px-3.5 py-2 rounded-full bg-slate-900/85 hover:bg-slate-950 text-white text-xs font-bold backdrop-blur-md border border-white/20 shadow-xl transition active:scale-95 cursor-pointer flex items-center gap-1.5"
+            title="Subir foto de fondo desde tu dispositivo"
+          >
+            {isUploadingCover ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+            ) : (
+              <Camera className="w-3.5 h-3.5 text-blue-400" />
+            )}
+            <span>Cambiar fondo</span>
+          </button>
+        )}
 
         {/* Recorte curvo blanco inferior que abarca el 100% del ancho de la pantalla */}
         <div className="absolute -bottom-2 left-0 right-0 h-12 sm:h-16 md:h-20 bg-white rounded-t-[50%] scale-x-125" />
@@ -99,13 +195,30 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
       {/* ============================================================== */}
       <div className="relative -mt-20 sm:-mt-28 md:-mt-32 flex flex-col items-center px-4 sm:px-6 w-full max-w-5xl mx-auto flex-1 pb-16">
         
-        {/* Avatar grande centrado */}
-        <div className="relative">
+        {/* Avatar grande centrado con botón de subida */}
+        <div className="relative group/avatar">
           <img
             src={user.avatarUrl}
             alt={user.nombre}
             className="w-32 h-32 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-[5px] sm:border-[6px] border-white shadow-2xl bg-white"
           />
+
+          {/* Botón directo para subir/cambiar foto de perfil */}
+          {onUpdateUser && (
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={isUploadingAvatar}
+              className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 p-2.5 sm:p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl border-2 sm:border-3 border-white transition active:scale-95 cursor-pointer transform hover:scale-105"
+              title="Subir foto de perfil desde tu dispositivo"
+            >
+              {isUploadingAvatar ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Camera className="w-4 h-4 text-white" />
+              )}
+            </button>
+          )}
         </div>
 
         {/* Nombre completo */}
