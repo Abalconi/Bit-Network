@@ -136,18 +136,19 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 
-# WhiteNoise en Django 4.2+ / 5.x: compresión gzip/brotli y caché permanente para CSS/JS/Tailwind
+# WhiteNoise: compresión gzip/brotli sin romper 500 si falta el manifiesto estático
+WHITENOISE_MANIFEST_STRICT = False
+
 STORAGES = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
     },
     'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
     },
 }
 
-# Compatibilidad retroactiva con configuraciones previas
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -200,7 +201,19 @@ else:
     ]
 
 # ==============================================================================
-# 9. CABECERAS Y FLAGS DE SEGURIDAD EN PRODUCCIÓN
+# 9. CSRF TRUSTED ORIGINS
+# ==============================================================================
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        'CSRF_TRUSTED_ORIGINS',
+        'https://*.up.railway.app,https://*.run.app,http://localhost:3000,http://127.0.0.1:3000',
+    ).split(',')
+    if origin.strip()
+]
+
+# ==============================================================================
+# 10. CABECERAS Y FLAGS DE SEGURIDAD EN PRODUCCIÓN
 # ==============================================================================
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
