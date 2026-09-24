@@ -27,7 +27,15 @@ interface PublicFullScreenProfileProps {
   user: UserProfile;
   onOpenCrm?: () => void;
   onUpdateUser?: (updated: Partial<UserProfile>) => void;
-  onLeadCapture?: (lead: { nombre: string; telefono: string; email: string; empresa: string; mensaje: string }) => void;
+  onLeadCapture?: (lead: { 
+    nombre: string; 
+    telefono: string; 
+    email: string; 
+    empresa: string; 
+    mensaje: string;
+    canal?: string;
+    origen?: string;
+  }) => void;
 }
 
 export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = ({
