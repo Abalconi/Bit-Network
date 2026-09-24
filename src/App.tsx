@@ -27,9 +27,14 @@ import { NewContactModal } from './components/NewContactModal';
 import { PublicFullScreenProfile } from './components/PublicFullScreenProfile';
 import { NfcTapSimulatorModal } from './components/NfcTapSimulatorModal';
 import { TrainingsModal } from './components/TrainingsModal';
+import { LoginModal } from './components/LoginModal';
 import { CheckCircle2 } from 'lucide-react';
 
 export default function App() {
+  // Estado de autenticación del propietario
+  const [authToken, setAuthToken] = useState<string | null>(() => crmApi.getStoredToken());
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
   // Estado del perfil del usuario (persistido en localStorage para no perder cambios de fotos/links/textos)
   const [user, setUser] = useState<UserProfile>(() => {
     try {
@@ -69,12 +74,29 @@ export default function App() {
 
   const [activities, setActivities] = useState<ActivityItem[]>(INITIAL_ACTIVITY);
 
-  // Sincronizar leads con el backend de Django en Railway y Supabase al cargar y periódicamente
+  // Sincronizar leads y perfil con el backend de Django en Railway y Supabase al cargar y periódicamente (SOLO si el dueño está autenticado)
   useEffect(() => {
+    if (!authToken) return;
+
     let isMounted = true;
 
+    // Sincronizar perfil guardado en el servidor si existe
+    crmApi.getProfile(authToken)
+      .then((serverProfile) => {
+        if (isMounted && serverProfile && serverProfile.nombre) {
+          setUser(prev => {
+            const merged = { ...prev, ...serverProfile };
+            try {
+              localStorage.setItem('bit_user_profile', JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
+        }
+      })
+      .catch(() => {});
+
     const fetchLatestLeads = () => {
-      crmApi.listContacts()
+      crmApi.listContacts(authToken)
         .then((serverLeads) => {
           if (isMounted && serverLeads && serverLeads.length > 0) {
             setLeads(prev => {
@@ -112,7 +134,7 @@ export default function App() {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
-  }, []);
+  }, [authToken]);
 
   // 'public_profile' = vista completa web real lista para el dominio sin marcos
   // 'crm' = panel administrativo donde se cambian fotos, links, títulos y textos
@@ -144,6 +166,14 @@ export default function App() {
       }
       return updated;
     });
+
+    // Guardar en backend si estamos autenticados
+    if (authToken) {
+      crmApi.saveProfile(updatedFields, authToken).catch(err => {
+        console.warn('Sincronización en segundo plano de perfil:', err);
+      });
+    }
+
     showToast('Cambios guardados con éxito');
   };
 
@@ -314,28 +344,102 @@ export default function App() {
     showToast('¡Tap NFC detectado! +1 lectura en tus analíticas');
   };
 
+  // Cerrar sesión de manera segura
+  const handleLogout = () => {
+    localStorage.removeItem('bit_crm_token');
+    localStorage.removeItem('bit_crm_user');
+    setAuthToken(null);
+    setAppMode('public_profile');
+    showToast('Sesión cerrada con éxito');
+  };
+
   // ==============================================================
-  // 1. PERFIL PÚBLICO FINAL FULL WEB (LISTO PARA SUBIR AL DOMINIO)
-  // Pantalla completa, sin marcos falsos, con formulario completo
+  // 1. PERFIL PÚBLICO FINAL FULL WEB (LISTO PARA COMPARTIR CON CLIENTES)
+  // Pantalla completa, sin marcos, protegido para visitantes
   // ==============================================================
   if (appMode === 'public_profile') {
     return (
-      <PublicFullScreenProfile 
-        user={user}
-        onOpenCrm={() => setAppMode('crm')}
-        onUpdateUser={handleUpdateUser}
-        onLeadCapture={(leadData: any) => {
-          handleAddNewLead({
-            nombre: leadData.nombre,
-            telefono: leadData.telefono,
-            email: leadData.email,
-            empresa: leadData.empresa,
-            origen: leadData.origen || (leadData.canal === 'WhatsApp' ? 'Compartido por WhatsApp' : 'Perfil público Bit'),
-            canal: leadData.canal || (leadData.origen?.includes('WhatsApp') ? 'WhatsApp' : 'NFC'),
-            notas: leadData.mensaje
-          });
-        }}
-      />
+      <>
+        <PublicFullScreenProfile 
+          user={user}
+          isAuthenticated={Boolean(authToken)}
+          onOpenCrm={() => {
+            if (authToken) {
+              setAppMode('crm');
+            } else {
+              setIsLoginModalOpen(true);
+            }
+          }}
+          onRequestLogin={() => setIsLoginModalOpen(true)}
+          onLogout={handleLogout}
+          onUpdateUser={handleUpdateUser}
+          onLeadCapture={(leadData: any) => {
+            handleAddNewLead({
+              nombre: leadData.nombre,
+              telefono: leadData.telefono,
+              email: leadData.email,
+              empresa: leadData.empresa,
+              origen: leadData.origen || (leadData.canal === 'WhatsApp' ? 'Compartido por WhatsApp' : 'Perfil público Bit'),
+              canal: leadData.canal || (leadData.origen?.includes('WhatsApp') ? 'WhatsApp' : 'NFC'),
+              notas: leadData.mensaje
+            });
+          }}
+        />
+
+        {/* Modal de login para el propietario */}
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onSuccess={(token) => {
+            setAuthToken(token);
+            setAppMode('crm');
+            showToast('¡Bienvenido! Sesión iniciada con éxito');
+          }}
+        />
+      </>
+    );
+  }
+
+  // ==============================================================
+  // 2. PANEL CRM: PROTEGIDO POR AUTENTICACIÓN
+  // ==============================================================
+  // Si no está autenticado, no permitir ver el panel CRM
+  if (!authToken) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full text-center space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto border border-indigo-500/20">
+            <CheckCircle2 className="w-8 h-8 text-indigo-400" />
+          </div>
+          <h2 className="text-xl font-bold text-white">Acceso restringido</h2>
+          <p className="text-sm text-slate-400">
+            Debes iniciar sesión con tus credenciales de propietario para acceder al CRM y editar tu perfil.
+          </p>
+          <div className="flex justify-center gap-3 pt-2">
+            <button
+              onClick={() => setAppMode('public_profile')}
+              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition cursor-pointer"
+            >
+              Volver al perfil
+            </button>
+            <button
+              onClick={() => setIsLoginModalOpen(true)}
+              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition cursor-pointer shadow-lg shadow-indigo-600/25"
+            >
+              Iniciar sesión
+            </button>
+          </div>
+        </div>
+
+        <LoginModal
+          isOpen={isLoginModalOpen}
+          onClose={() => setIsLoginModalOpen(false)}
+          onSuccess={(token) => {
+            setAuthToken(token);
+            showToast('¡Bienvenido! Sesión iniciada');
+          }}
+        />
+      </div>
     );
   }
 
@@ -360,6 +464,13 @@ export default function App() {
             <span>Ver Perfil Web en Vivo</span>
             <span>→</span>
           </button>
+          <button
+            onClick={handleLogout}
+            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-300 font-medium text-xs transition cursor-pointer border border-slate-700/60"
+            title="Cerrar sesión de propietario"
+          >
+            Cerrar Sesión
+          </button>
         </div>
       </div>
 
@@ -373,6 +484,7 @@ export default function App() {
           onCloseMobile={() => setIsMobileMenuOpen(false)}
           onOpenPublicProfile={() => setAppMode('public_profile')}
           onOpenTrainings={() => setIsTrainingsOpen(true)}
+          onLogout={handleLogout}
         />
 
         {/* Contenedor Principal con Header y Vistas */}
@@ -383,6 +495,7 @@ export default function App() {
             onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             onOpenPublicProfile={() => setAppMode('public_profile')}
             onOpenTrainings={() => setIsTrainingsOpen(true)}
+            onLogout={handleLogout}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
           />

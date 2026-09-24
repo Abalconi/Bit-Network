@@ -74,30 +74,26 @@ export function getStoredToken(): string | null {
 
 export async function listContacts(token?: string | null): Promise<CrmLead[]> {
   const effectiveToken = token || getStoredToken();
-  const url = effectiveToken
-    ? `${CRM_API_URL}/contacts/`
-    : `${CRM_API_URL}/public/capture/`;
+  
+  // POR SEGURIDAD Y PRIVACIDAD DE DATOS:
+  // Si no hay token de propietario, NO descargar la lista de contactos del backend.
+  // Un cliente o visitante público solo debe poder capturar su propio contacto (POST), no listar los de otros (GET).
+  if (!effectiveToken) {
+    return [];
+  }
+
+  const url = `${CRM_API_URL}/contacts/`;
 
   const response = await fetch(url, {
     headers: authHeaders(effectiveToken),
   });
 
   if (!response.ok) {
-    // Si falla el endpoint privado por 401, reintentar con el público
-    if (effectiveToken && response.status === 401) {
-      try {
-        const fallbackRes = await fetch(`${CRM_API_URL}/public/capture/`, {
-          headers: authHeaders(null),
-        });
-        if (fallbackRes.ok) {
-          const contacts = await fallbackRes.json() as ApiContact[];
-          const leads = contacts.map(toCrmLead);
-          try {
-            localStorage.setItem('bit_crm_leads', JSON.stringify(leads));
-          } catch {}
-          return leads;
-        }
-      } catch {}
+    if (response.status === 401) {
+      // Token expirado o revocado
+      localStorage.removeItem('bit_crm_token');
+      localStorage.removeItem('bit_crm_user');
+      throw new Error('Sesión expirada. Por favor ingresa nuevamente con tus credenciales.');
     }
     throw new Error('No se pudieron cargar los contactos del servidor.');
   }
@@ -190,4 +186,46 @@ export async function updateContactStage(leadId: string, estatus: ContactStage, 
   }
 
   return toCrmLead(await response.json() as ApiContact);
+}
+
+/**
+ * Obtener perfil de usuario desde el backend si existe
+ */
+export async function getProfile(token?: string | null): Promise<Partial<any> | null> {
+  const effectiveToken = token || getStoredToken();
+  if (!effectiveToken) return null;
+
+  try {
+    const response = await fetch(`${CRM_API_URL}/profile/`, {
+      headers: authHeaders(effectiveToken),
+    });
+
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Endpoint de perfil no disponible en el backend, usando almacenamiento local:', err);
+  }
+  return null;
+}
+
+/**
+ * Guardar perfil de usuario en el backend si el endpoint está disponible
+ */
+export async function saveProfile(profileData: any, token?: string | null): Promise<boolean> {
+  const effectiveToken = token || getStoredToken();
+  if (!effectiveToken) return false;
+
+  try {
+    const response = await fetch(`${CRM_API_URL}/profile/`, {
+      method: 'PUT',
+      headers: authHeaders(effectiveToken),
+      body: JSON.stringify(profileData),
+    });
+
+    return response.ok;
+  } catch (err) {
+    console.warn('No se pudo sincronizar perfil al backend:', err);
+    return false;
+  }
 }

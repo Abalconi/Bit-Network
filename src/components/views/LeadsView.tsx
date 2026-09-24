@@ -265,9 +265,9 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                 />
               </svg>
 
-              {/* Centro del Donut: "247 total" */}
+              {/* Centro del Donut: leads reales */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-2xl font-black text-slate-900 tracking-tight">247</span>
+                <span className="text-2xl font-black text-slate-900 tracking-tight">{leads.length}</span>
                 <span className="text-[10px] font-semibold text-slate-400 -mt-0.5">total</span>
               </div>
             </div>
@@ -280,10 +280,13 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ch.color }} />
                     <span className="text-slate-700">{ch.nombre}</span>
                   </div>
-                  <span className="text-slate-900 font-bold">{ch.porcentaje}%</span>
+                  <span className="text-slate-900 font-bold">
+                    {leads.length > 0 ? `${Math.round((leads.filter(l => l.canal === ch.nombre).length / leads.length) * 100)}%` : '0%'}
+                  </span>
                 </div>
               ))}
             </div>
+
 
           </div>
         </div>
@@ -375,7 +378,21 @@ export const LeadsView: React.FC<LeadsViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
+              {filteredLeads.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 px-4 text-center">
+                    <div className="flex flex-col items-center justify-center max-w-sm mx-auto text-slate-400">
+                      <Users className="w-10 h-10 mb-3 text-slate-300 stroke-1" />
+                      <p className="text-sm font-bold text-slate-700">Sin prospectos registrados aún</p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Comparte tu enlace de perfil con tus clientes o acerca tu dispositivo Bit NFC para empezar a recibir contactos reales.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : null}
               {filteredLeads.map((lead) => {
+
                 const channelInfo = getChannelBadge(lead.canal);
                 const ChannelIcon = channelInfo.icon;
 

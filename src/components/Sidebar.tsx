@@ -45,6 +45,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onCloseMobile,
   onOpenPublicProfile,
+  onOpenTrainings,
+  onLogout,
 }) => {
   const navItems = [
     { id: 'dashboard' as NavTabId, label: 'Dashboard', icon: LayoutDashboard },
@@ -151,6 +153,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <Sparkles className="w-3 h-3 text-blue-400" />
             <span>Ver perfil del cliente</span>
           </button>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="w-full mt-1.5 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-transparent hover:bg-rose-950/40 text-[11px] font-semibold text-slate-400 hover:text-rose-300 border border-transparent hover:border-rose-800/40 transition cursor-pointer"
+            >
+              <LogOut className="w-3 h-3 text-rose-400" />
+              <span>Cerrar Sesión</span>
+            </button>
+          )}
         </div>
       </aside>
     </>

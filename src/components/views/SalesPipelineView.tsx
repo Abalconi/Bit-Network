@@ -27,13 +27,19 @@ export const SalesPipelineView: React.FC<SalesPipelineViewProps> = ({
   onUpdateLeadStage,
   onAddNewContact,
 }) => {
-  const stages: { id: ContactStage; label: string; count: number; color: string; borderTop: string }[] = [
-    { id: 'Nuevo', label: 'Nuevo', count: 68, color: 'text-blue-600 bg-blue-50', borderTop: 'border-t-blue-500' },
-    { id: 'Contactado', label: 'Contactado', count: 54, color: 'text-purple-600 bg-purple-50', borderTop: 'border-t-purple-500' },
-    { id: 'En negociación', label: 'En negociación', count: 27, color: 'text-amber-600 bg-amber-50', borderTop: 'border-t-amber-500' },
-    { id: 'Ganado', label: 'Ganado', count: 18, color: 'text-emerald-600 bg-emerald-50', borderTop: 'border-t-emerald-500' },
-    { id: 'Perdido', label: 'Perdido', count: 12, color: 'text-rose-600 bg-rose-50', borderTop: 'border-t-rose-500' },
+  const stageDefinitions: { id: ContactStage; label: string; color: string; borderTop: string }[] = [
+    { id: 'Nuevo', label: 'Nuevo', color: 'text-blue-600 bg-blue-50', borderTop: 'border-t-blue-500' },
+    { id: 'Contactado', label: 'Contactado', color: 'text-purple-600 bg-purple-50', borderTop: 'border-t-purple-500' },
+    { id: 'En negociación', label: 'En negociación', color: 'text-amber-600 bg-amber-50', borderTop: 'border-t-amber-500' },
+    { id: 'Ganado', label: 'Ganado', color: 'text-emerald-600 bg-emerald-50', borderTop: 'border-t-emerald-500' },
+    { id: 'Perdido', label: 'Perdido', color: 'text-rose-600 bg-rose-50', borderTop: 'border-t-rose-500' },
   ];
+
+  const stages = stageDefinitions.map(def => ({
+    ...def,
+    count: leads.filter(l => l.estatus === def.id).length,
+  }));
+
 
   const getChannelBadge = (channel: LeadChannel) => {
     switch (channel) {
