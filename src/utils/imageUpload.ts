@@ -1,7 +1,8 @@
 /**
- * Utilidad para optimizar y convertir imágenes subidas por el usuario a Data URLs
- * Redimensiona proporcionalmente para evitar saturar el almacenamiento de LocalStorage
- * garantizando la máxima nitidez tanto en móviles como en pantallas de alta resolución.
+ * Utilidad para optimizar y convertir imágenes subidas por el usuario a Data URLs seguras.
+ * - Comprime y redimensiona de forma óptima para no sobrecargar el almacenamiento local
+ * - Genera un formato universal compatible tanto con Supabase/Django backend como con localStorage
+ * - Garantiza que las imágenes se sincronicen entre dispositivos sin depender de rutas temporales (blob:)
  */
 
 export interface ProcessImageOptions {
@@ -13,7 +14,7 @@ export function processUploadedImage(
   file: File,
   options: ProcessImageOptions = {}
 ): Promise<string> {
-  const { maxDimension = 1400, quality = 0.86 } = options;
+  const { maxDimension = 1200, quality = 0.82 } = options;
 
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith('image/')) {
@@ -34,8 +35,8 @@ export function processUploadedImage(
         return;
       }
 
-      // Si es un SVG o GIF animado ligero, podemos devolverlo directo
-      if (file.type === 'image/svg+xml' || (file.type === 'image/gif' && file.size < 500 * 1024)) {
+      // Si es un SVG liviano, conservarlo directo
+      if (file.type === 'image/svg+xml') {
         resolve(result);
         return;
       }
@@ -49,7 +50,7 @@ export function processUploadedImage(
         let width = img.width;
         let height = img.height;
 
-        // Si la imagen es más grande que maxDimension, calcular escala proporcional
+        // Redimensionar proporcionalmente para optimizar peso y transferencia de red
         if (width > maxDimension || height > maxDimension) {
           if (width > height) {
             height = Math.round((height * maxDimension) / width);
@@ -66,27 +67,21 @@ export function processUploadedImage(
 
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-          // Si el navegador no soporta 2D context, usar dataUrl original
           resolve(result);
           return;
         }
 
-        // Suavizado de bordes para alta calidad
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
 
-        // Dibujar en el canvas
+        // Dibujar en el canvas redimensionado
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Exportar como JPEG optimizado para fotos, o PNG si conserva transparencias
-        const isPngWithAlpha = file.type === 'image/png';
-        const outputMime = isPngWithAlpha ? 'image/png' : 'image/jpeg';
-        
+        // Exportar como JPEG optimizado para fotos
         try {
-          const optimizedDataUrl = canvas.toDataURL(outputMime, quality);
+          const optimizedDataUrl = canvas.toDataURL('image/jpeg', quality);
           resolve(optimizedDataUrl);
         } catch {
-          // Fallback seguro al Data URL original
           resolve(result);
         }
       };

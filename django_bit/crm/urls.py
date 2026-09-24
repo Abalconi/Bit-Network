@@ -18,4 +18,3 @@ urlpatterns = [
     path('api/contacts/<int:contact_id>/stage/', ContactStageAPIView.as_view(), name='api_contact_stage'),
     path('api/public/capture/', PublicCaptureAPIView.as_view(), name='api_public_capture'),
 ]
-

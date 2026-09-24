@@ -29,6 +29,7 @@ import { NfcTapSimulatorModal } from './components/NfcTapSimulatorModal';
 import { TrainingsModal } from './components/TrainingsModal';
 import { LoginModal } from './components/LoginModal';
 import { CheckCircle2 } from 'lucide-react';
+import { normalizeAssetUrl } from './utils/assetSync';
 
 export default function App() {
   // Estado de autenticación del propietario
@@ -41,13 +42,9 @@ export default function App() {
       const saved = localStorage.getItem('bit_user_profile');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Si tiene la ruta rota antigua de desarrollo, migrar a la imagen válida empaquetada
-        if (!parsed.avatarUrl || parsed.avatarUrl.startsWith('/src/assets/')) {
-          parsed.avatarUrl = INITIAL_USER_PROFILE.avatarUrl;
-        }
-        if (!parsed.coverUrl || parsed.coverUrl.startsWith('/src/assets/')) {
-          parsed.coverUrl = INITIAL_USER_PROFILE.coverUrl;
-        }
+        // Normalizar rutas de avatares y fondos para garantizar consistencia universal entre dispositivos
+        parsed.avatarUrl = normalizeAssetUrl(parsed.avatarUrl, 'avatar');
+        parsed.coverUrl = normalizeAssetUrl(parsed.coverUrl, 'cover');
         return parsed;
       }
       return INITIAL_USER_PROFILE;
@@ -86,6 +83,12 @@ export default function App() {
         if (isMounted && serverProfile && serverProfile.nombre) {
           setUser(prev => {
             const merged = { ...prev, ...serverProfile };
+            if (merged.avatarUrl) {
+              merged.avatarUrl = normalizeAssetUrl(merged.avatarUrl, 'avatar');
+            }
+            if (merged.coverUrl) {
+              merged.coverUrl = normalizeAssetUrl(merged.coverUrl, 'cover');
+            }
             try {
               localStorage.setItem('bit_user_profile', JSON.stringify(merged));
             } catch {}
@@ -322,6 +325,14 @@ export default function App() {
     if (selectedLead && selectedLead.id === leadId) {
       setSelectedLead(null);
     }
+
+    // Sincronizar eliminación en el backend si estamos autenticados
+    if (authToken && !leadId.startsWith('lead-')) {
+      crmApi.deleteContact(leadId, authToken).catch(err => {
+        console.warn('Error eliminando contacto en backend:', err);
+      });
+    }
+
     showToast('Lead eliminado');
   };
 

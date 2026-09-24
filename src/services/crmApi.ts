@@ -175,6 +175,10 @@ export async function captureWhatsAppLead(data: {
 
 export async function updateContactStage(leadId: string, estatus: ContactStage, token?: string | null) {
   const effectiveToken = token || getStoredToken();
+  if (!effectiveToken) {
+    throw new Error('Se requiere autenticación para actualizar la etapa del contacto.');
+  }
+
   const response = await fetch(`${CRM_API_URL}/contacts/${leadId}/stage/`, {
     method: 'PATCH',
     headers: authHeaders(effectiveToken),
@@ -186,6 +190,20 @@ export async function updateContactStage(leadId: string, estatus: ContactStage, 
   }
 
   return toCrmLead(await response.json() as ApiContact);
+}
+
+export async function deleteContact(leadId: string, token?: string | null): Promise<boolean> {
+  const effectiveToken = token || getStoredToken();
+  if (!effectiveToken) {
+    throw new Error('Se requiere autenticación para eliminar un contacto.');
+  }
+
+  const response = await fetch(`${CRM_API_URL}/contacts/${leadId}/`, {
+    method: 'DELETE',
+    headers: authHeaders(effectiveToken),
+  });
+
+  return response.ok;
 }
 
 /**
