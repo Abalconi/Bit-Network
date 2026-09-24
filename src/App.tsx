@@ -58,33 +58,49 @@ export default function App() {
 
   const [activities, setActivities] = useState<ActivityItem[]>(INITIAL_ACTIVITY);
 
-  // Sincronizar leads con el backend de Django en Railway y Supabase al cargar
+  // Sincronizar leads con el backend de Django en Railway y Supabase al cargar y periódicamente
   useEffect(() => {
     let isMounted = true;
-    crmApi.listContacts()
-      .then((serverLeads) => {
-        if (isMounted && serverLeads && serverLeads.length > 0) {
-          setLeads(prev => {
-            const map = new Map<string, CrmLead>();
-            // Primero cargamos los contactos de la base de datos
-            serverLeads.forEach(l => map.set(l.id, l));
-            // Agregamos los que ya teníamos para no perder nada
-            prev.forEach(l => {
-              if (!map.has(l.id)) map.set(l.id, l);
-            });
-            const merged = Array.from(map.values());
-            try {
-              localStorage.setItem('bit_crm_leads', JSON.stringify(merged));
-            } catch {}
-            return merged;
-          });
-        }
-      })
-      .catch((err) => {
-        console.warn('Conectando con base de datos local y remota:', err);
-      });
 
-    return () => { isMounted = false; };
+    const fetchLatestLeads = () => {
+      crmApi.listContacts()
+        .then((serverLeads) => {
+          if (isMounted && serverLeads && serverLeads.length > 0) {
+            setLeads(prev => {
+              const map = new Map<string, CrmLead>();
+              // Primero cargamos los contactos de la base de datos Supabase
+              serverLeads.forEach(l => map.set(l.id, l));
+              // Agregamos los que ya teníamos para no perder nada
+              prev.forEach(l => {
+                if (!map.has(l.id)) map.set(l.id, l);
+              });
+              const merged = Array.from(map.values());
+              try {
+                localStorage.setItem('bit_crm_leads', JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
+          }
+        })
+        .catch((err) => {
+          console.warn('Conectando con base de datos local y remota:', err);
+        });
+    };
+
+    fetchLatestLeads();
+
+    // Sincronizar cada 10 segundos para ver cambios entre móvil y PC sin refrescar
+    const interval = setInterval(fetchLatestLeads, 10000);
+
+    // Sincronizar inmediatamente al volver a la pestaña
+    const handleFocus = () => fetchLatestLeads();
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   // 'public_profile' = vista completa web real lista para el dominio sin marcos

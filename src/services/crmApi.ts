@@ -74,11 +74,31 @@ export function getStoredToken(): string | null {
 
 export async function listContacts(token?: string | null): Promise<CrmLead[]> {
   const effectiveToken = token || getStoredToken();
-  const response = await fetch(`${CRM_API_URL}/contacts/`, {
+  const url = effectiveToken
+    ? `${CRM_API_URL}/contacts/`
+    : `${CRM_API_URL}/public/capture/`;
+
+  const response = await fetch(url, {
     headers: authHeaders(effectiveToken),
   });
 
   if (!response.ok) {
+    // Si falla el endpoint privado por 401, reintentar con el público
+    if (effectiveToken && response.status === 401) {
+      try {
+        const fallbackRes = await fetch(`${CRM_API_URL}/public/capture/`, {
+          headers: authHeaders(null),
+        });
+        if (fallbackRes.ok) {
+          const contacts = await fallbackRes.json() as ApiContact[];
+          const leads = contacts.map(toCrmLead);
+          try {
+            localStorage.setItem('bit_crm_leads', JSON.stringify(leads));
+          } catch {}
+          return leads;
+        }
+      } catch {}
+    }
     throw new Error('No se pudieron cargar los contactos del servidor.');
   }
 

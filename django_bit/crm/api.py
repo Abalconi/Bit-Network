@@ -51,10 +51,20 @@ class ContactListCreateAPIView(APIView):
 
 class PublicCaptureAPIView(APIView):
     """
-    Endpoint público para capturar prospectos desde WhatsApp, NFC o formularios públicos.
-    No requiere autenticación previa.
+    Endpoint público para capturar y sincronizar prospectos desde WhatsApp, NFC o dispositivos.
+    No requiere autenticación previa para ver/guardar prospectos del perfil BIT.
     """
     permission_classes = [AllowAny]
+
+    def get(self, request):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        owner = User.objects.filter(is_superuser=True).first() or User.objects.first()
+        if owner:
+            contacts = Contact.objects.filter(user=owner).order_by('-created_at')
+        else:
+            contacts = Contact.objects.all().order_by('-created_at')
+        return Response(ContactSerializer(contacts, many=True).data)
 
     def post(self, request):
         nombre = request.data.get('nombre', '').strip() or 'Contacto WhatsApp / Interesado'
