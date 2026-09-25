@@ -226,3 +226,8 @@ class ProfileAPIView(APIView):
 
         profile.save()
         return Response({'status': 'ok', 'detail': 'Perfil actualizado con éxito.'})
+
+
+# Alias de compatibilidad para evitar errores de importación
+PublicProfileAPIView = ProfileAPIView
+
