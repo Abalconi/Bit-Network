@@ -25,8 +25,6 @@ import { UserProfile } from '../types';
 import { ShareContactModal } from './ShareContactModal';
 import { ProfileSectionDetailModal } from './ProfileSectionDetailModal';
 import { processUploadedImage } from '../utils/imageUpload';
-import { normalizeAssetUrl } from '../utils/assetSync';
-import { INITIAL_USER_PROFILE } from '../data/mockData';
 
 interface PublicFullScreenProfileProps {
   user: UserProfile;
@@ -58,17 +56,6 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
   const [downloadedVcard, setDownloadedVcard] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [activeDetailSection, setActiveDetailSection] = useState<'sobreMi' | 'miTrabajo' | 'contactame' | null>(null);
-
-  // Normalizar imágenes y redes para que nunca queden vacías
-  const displayAvatar = normalizeAssetUrl(user.avatarUrl, 'avatar');
-  const displayCover = normalizeAssetUrl(user.coverUrl, 'cover');
-  const redes = {
-    linkedin: user.redesSociales?.linkedin?.trim() || INITIAL_USER_PROFILE.redesSociales.linkedin,
-    instagram: user.redesSociales?.instagram?.trim() || INITIAL_USER_PROFILE.redesSociales.instagram,
-    tiktok: user.redesSociales?.tiktok?.trim() || INITIAL_USER_PROFILE.redesSociales.tiktok,
-    facebook: user.redesSociales?.facebook?.trim() || INITIAL_USER_PROFILE.redesSociales.facebook,
-    website: user.redesSociales?.website?.trim() || INITIAL_USER_PROFILE.redesSociales.website,
-  };
 
   // Estados de subida directa de fotos desde el perfil público
   const [isUploadingCover, setIsUploadingCover] = useState(false);
@@ -173,39 +160,12 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
         </div>
       )}
 
-      {/* Botón flotante superior: si está autenticado 'Editar Perfil', si no 'Acceso Propietario' */}
-      <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
-        {isAuthenticated ? (
-          onOpenCrm && (
-            <button
-              onClick={onOpenCrm}
-              className="px-3.5 py-2 rounded-full bg-slate-900/85 hover:bg-slate-950 text-white text-xs font-bold backdrop-blur-md border border-white/20 shadow-xl transition active:scale-95 cursor-pointer flex items-center gap-1.5"
-              title="Ir al panel CRM para editar fotos, enlaces y textos"
-            >
-              <Edit3 className="w-3.5 h-3.5 text-blue-400" />
-              <span>Editar Perfil</span>
-            </button>
-          )
-        ) : (
-          onRequestLogin && (
-            <button
-              onClick={onRequestLogin}
-              className="px-3.5 py-2 rounded-full bg-slate-900/85 hover:bg-slate-950 text-white text-xs font-bold backdrop-blur-md border border-white/20 shadow-xl transition active:scale-95 cursor-pointer flex items-center gap-1.5"
-              title="Iniciar sesión como dueño para editar y guardar cambios"
-            >
-              <Lock className="w-3.5 h-3.5 text-amber-300" />
-              <span>Soy Dueño</span>
-            </button>
-          )
-        )}
-      </div>
-
       {/* ============================================================== */}
       {/* 1. PORTADA FULL WIDTH WEB CON RECORTE CURVO INFERIOR           */}
       {/* ============================================================== */}
       <div className="relative w-full h-64 sm:h-80 md:h-96 lg:h-[420px] overflow-hidden bg-slate-900 group">
         <img
-          src={displayCover}
+          src={user.coverUrl}
           alt="Portada"
           className="w-full h-full object-cover object-center"
         />
@@ -242,9 +202,9 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
         
         {/* Avatar grande centrado con botón de subida */}
         <div className="relative group/avatar">
-          {displayAvatar ? (
+          {user.avatarUrl ? (
             <img
-              src={displayAvatar}
+              src={user.avatarUrl}
               alt={user.nombre}
               className="w-32 h-32 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full object-cover border-[5px] sm:border-[6px] border-white shadow-2xl bg-indigo-50"
               onError={(e) => {
@@ -257,7 +217,7 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
           ) : null}
           <div
             id="avatar-fallback"
-            style={{ display: displayAvatar ? 'none' : 'flex' }}
+            style={{ display: user.avatarUrl ? 'none' : 'flex' }}
             className="w-32 h-32 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full border-[5px] sm:border-[6px] border-white shadow-2xl bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white font-extrabold text-4xl sm:text-5xl items-center justify-center select-none"
           >
             {user.nombre ? user.nombre.charAt(0).toUpperCase() : 'A'}
@@ -313,9 +273,9 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
         <div className="flex items-center justify-center gap-3 sm:gap-4 mt-6 flex-wrap">
           
           {/* LinkedIn */}
-          {redes.linkedin && (
+          {user.redesSociales.linkedin && (
             <a
-              href={redes.linkedin}
+              href={user.redesSociales.linkedin}
               target="_blank"
               rel="noreferrer"
               aria-label="LinkedIn"
@@ -326,9 +286,9 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
           )}
 
           {/* Instagram */}
-          {redes.instagram && (
+          {user.redesSociales.instagram && (
             <a
-              href={redes.instagram}
+              href={user.redesSociales.instagram}
               target="_blank"
               rel="noreferrer"
               aria-label="Instagram"
