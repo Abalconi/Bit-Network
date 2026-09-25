@@ -31,7 +31,7 @@ import { processUploadedImage } from '../../utils/imageUpload';
 
 interface CustomizeProfileViewProps {
   user: UserProfile;
-  onUpdateUser: (updated: Partial<UserProfile>) => void;
+  onUpdateUser: (updated: Partial<UserProfile>) => Promise<any> | void;
   onOpenPublicProfile: () => void;
 }
 
@@ -43,6 +43,8 @@ export const CustomizeProfileView: React.FC<CustomizeProfileViewProps> = ({
   const [formData, setFormData] = useState<UserProfile>(user);
   const [activeTab, setActiveTab] = useState<'general' | 'links' | 'sections'>('general');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Estados de subida y arrastre de fotos
   const [isProcessingCover, setIsProcessingCover] = useState(false);
@@ -127,12 +129,20 @@ export const CustomizeProfileView: React.FC<CustomizeProfileViewProps> = ({
     }
   };
 
-  // Guardar cambios generales en el perfil
-  const handleSave = (e: React.FormEvent) => {
+  // Guardar cambios generales en el perfil (con sincronización en la nube y persistencia)
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateUser(formData);
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await onUpdateUser(formData);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 4000);
+    } catch (err: any) {
+      setSaveError(err?.message || 'Error al guardar los cambios en el servidor');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Galería de fotos predefinidas para cambio rápido si el usuario lo desea
@@ -969,22 +979,38 @@ export const CustomizeProfileView: React.FC<CustomizeProfileViewProps> = ({
         )}
 
         {/* BOTÓN FLOTANTE O FIJO DE GUARDADO */}
-        <div className="pt-4 flex items-center justify-between">
+        <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             {savedSuccess && (
-              <span className="flex items-center gap-1 text-emerald-600 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
-                <Check className="w-4 h-4" />
-                <span>¡Cambios guardados y aplicados en el perfil público!</span>
+              <span className="flex items-center gap-1.5 text-emerald-700 text-xs font-bold bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200 animate-in fade-in duration-200">
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span>¡Cambios guardados y sincronizados en la nube!</span>
+              </span>
+            )}
+            {saveError && (
+              <span className="flex items-center gap-1.5 text-rose-700 text-xs font-bold bg-rose-50 px-3.5 py-2 rounded-xl border border-rose-200 animate-in fade-in duration-200">
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                <span>{saveError}</span>
               </span>
             )}
           </div>
 
           <button
             type="submit"
-            className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md hover:shadow-lg transition flex items-center gap-2 cursor-pointer active:scale-95"
+            disabled={isSaving}
+            className="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
           >
-            <Save className="w-4 h-4" />
-            <span>Guardar todos los cambios</span>
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Sincronizando en la nube...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                <span>Guardar todos los cambios</span>
+              </>
+            )}
           </button>
         </div>
 

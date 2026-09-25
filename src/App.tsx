@@ -90,16 +90,22 @@ export default function App() {
 
           const cleaned: Partial<UserProfile> = {};
           if (serverProfile.nombre && !shouldKeepLocalName) cleaned.nombre = serverProfile.nombre;
-          if (serverProfile.cargo) cleaned.cargo = serverProfile.cargo;
-          if (serverProfile.tagline) cleaned.tagline = serverProfile.tagline;
-          if (serverProfile.empresa) cleaned.empresa = serverProfile.empresa;
-          if (serverProfile.ubicacion) cleaned.ubicacion = serverProfile.ubicacion;
-          if (serverProfile.descripcion) cleaned.descripcion = serverProfile.descripcion;
-          if (serverProfile.telefono) cleaned.telefono = serverProfile.telefono;
-          if (serverProfile.email) cleaned.email = serverProfile.email;
-          if (serverProfile.whatsapp) cleaned.whatsapp = serverProfile.whatsapp;
+          if (serverProfile.cargo !== undefined) cleaned.cargo = serverProfile.cargo;
+          if (serverProfile.tagline !== undefined) cleaned.tagline = serverProfile.tagline;
+          if (serverProfile.empresa !== undefined) cleaned.empresa = serverProfile.empresa;
+          if (serverProfile.ubicacion !== undefined) cleaned.ubicacion = serverProfile.ubicacion;
+          if (serverProfile.descripcion !== undefined) cleaned.descripcion = serverProfile.descripcion;
+          if (serverProfile.telefono !== undefined) cleaned.telefono = serverProfile.telefono;
+          if (serverProfile.email !== undefined) cleaned.email = serverProfile.email;
+          if (serverProfile.whatsapp !== undefined) cleaned.whatsapp = serverProfile.whatsapp;
           if (serverProfile.avatarUrl) cleaned.avatarUrl = normalizeAssetUrl(serverProfile.avatarUrl, 'avatar');
           if (serverProfile.coverUrl) cleaned.coverUrl = normalizeAssetUrl(serverProfile.coverUrl, 'cover');
+
+          // Si el perfil proviene de la base de datos real (tiene email o nombre), asegurarse de que nunca se filtren teléfonos falsos
+          if (serverProfile.email) {
+            cleaned.telefono = serverProfile.telefono || '';
+            cleaned.whatsapp = serverProfile.whatsapp || '';
+          }
 
           // Fusión segura de redes sociales: solo sobreescribir las que tengan valor
           if (serverProfile.redesSociales && typeof serverProfile.redesSociales === 'object') {
@@ -218,8 +224,17 @@ export default function App() {
     // Guardar en backend si estamos autenticados
     if (authToken) {
       try {
-        await crmApi.saveProfile(updated, authToken);
-        showToast('¡Perfil guardado y sincronizado con éxito!');
+        const responseData = await crmApi.saveProfile(updated, authToken);
+        if (responseData && responseData.profile) {
+          setUser(prev => {
+            const confirmed = { ...prev, ...responseData.profile };
+            try {
+              localStorage.setItem('bit_user_profile', JSON.stringify(confirmed));
+            } catch {}
+            return confirmed;
+          });
+        }
+        showToast('¡Perfil guardado y sincronizado con éxito en la nube!');
       } catch (err: any) {
         const errorMsg = err?.message || 'Error al sincronizar con el servidor';
         if (errorMsg.includes('expirado') || errorMsg.includes('no es válida')) {
@@ -227,6 +242,7 @@ export default function App() {
           setIsLoginModalOpen(true);
         }
         showToast(errorMsg);
+        throw err;
       }
     } else {
       showToast('Guardado localmente. Inicia sesión como propietario para sincronizar en la nube.');

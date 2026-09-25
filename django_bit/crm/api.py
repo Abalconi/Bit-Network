@@ -225,7 +225,26 @@ class ProfileAPIView(APIView):
         profile.links = current_extra
 
         profile.save()
-        return Response({'status': 'ok', 'detail': 'Perfil actualizado con éxito.'})
+        extra = profile.links if isinstance(profile.links, dict) else {}
+        return Response({
+            'status': 'ok',
+            'detail': 'Perfil actualizado con éxito.',
+            'profile': {
+                'nombre': profile.nombre or '',
+                'cargo': profile.cargo or extra.get('cargo', ''),
+                'tagline': extra.get('tagline', profile.cargo or ''),
+                'empresa': profile.empresa or extra.get('empresa', ''),
+                'ubicacion': extra.get('ubicacion', ''),
+                'descripcion': profile.descripcion or extra.get('descripcion', ''),
+                'telefono': profile.telefono or extra.get('telefono', ''),
+                'email': profile.email or request.user.email,
+                'whatsapp': profile.whatsapp or extra.get('whatsapp', ''),
+                'avatarUrl': profile.fotografia_url or profile.avatar_display_url,
+                'coverUrl': extra.get('coverUrl', ''),
+                'redesSociales': profile.redes_sociales or {},
+                'sections': extra.get('sections', None),
+            }
+        })
 
 
 # Alias de compatibilidad para evitar errores de importación

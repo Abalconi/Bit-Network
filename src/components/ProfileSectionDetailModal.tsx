@@ -27,7 +27,8 @@ export const ProfileSectionDetailModal: React.FC<ProfileSectionDetailModalProps>
 }) => {
   if (!section) return null;
 
-  const rawWa = user.whatsapp ? user.whatsapp.replace(/\D/g, '') : '50255551234';
+  const effectiveWa = user.whatsapp?.trim() || user.telefono?.trim() || '';
+  const rawWa = effectiveWa.replace(/\D/g, '');
 
   return (
     <div 

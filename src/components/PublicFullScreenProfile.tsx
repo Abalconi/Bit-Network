@@ -328,29 +328,31 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
             </a>
           )}
 
-          {/* WhatsApp */}
-          <a
-            href={`https://wa.me/${user.whatsapp.replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(user.nombre)},%20acabo%20de%20escanear%20tu%20Bit.`}
-            target="_blank"
-            rel="noreferrer"
-            onClick={() => {
-              if (onLeadCapture) {
-                onLeadCapture({
-                  nombre: 'Interesado vía WhatsApp',
-                  telefono: '',
-                  email: '',
-                  empresa: '',
-                  mensaje: 'Inició conversación directa por WhatsApp desde el perfil BIT.',
-                  canal: 'WhatsApp',
-                  origen: 'WhatsApp Directo',
-                });
-              }
-            }}
-            aria-label="WhatsApp"
-            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#25D366] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition shadow-sm"
-          >
-            <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
-          </a>
+          {/* WhatsApp (Solo si el propietario ha configurado su WhatsApp o Teléfono) */}
+          {Boolean((user.whatsapp?.trim() || user.telefono?.trim())) && (
+            <a
+              href={`https://wa.me/${(user.whatsapp?.trim() || user.telefono?.trim() || '').replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(user.nombre)},%20acabo%20de%20escanear%20tu%20Bit.`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => {
+                if (onLeadCapture) {
+                  onLeadCapture({
+                    nombre: 'Interesado vía WhatsApp',
+                    telefono: '',
+                    email: '',
+                    empresa: '',
+                    mensaje: 'Inició conversación directa por WhatsApp desde el perfil BIT.',
+                    canal: 'WhatsApp',
+                    origen: 'WhatsApp Directo',
+                  });
+                }
+              }}
+              aria-label="WhatsApp"
+              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#25D366] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition shadow-sm"
+            >
+              <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
+            </a>
+          )}
 
           {/* Página Web */}
           {user.redesSociales.website && (

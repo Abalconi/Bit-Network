@@ -84,7 +84,8 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
       });
     }
 
-    const rawWa = user.whatsapp ? user.whatsapp.replace(/\D/g, '') : '50255551234';
+    const effectiveWa = user.whatsapp?.trim() || user.telefono?.trim() || '';
+    const rawWa = effectiveWa.replace(/\D/g, '');
     const text = encodeURIComponent(
       `Hola ${user.nombre}, te comparto mis datos de contacto tras ver tu Bit:\n\n` +
       `• Nombre: ${leadNombre}\n` +
@@ -94,7 +95,9 @@ export const ShareContactModal: React.FC<ShareContactModalProps> = ({
       (mensaje ? `• Mensaje: ${mensaje}\n` : '')
     );
 
-    window.open(`https://wa.me/${rawWa}?text=${text}`, '_blank');
+    if (rawWa) {
+      window.open(`https://wa.me/${rawWa}?text=${text}`, '_blank');
+    }
     setIsSent(true);
 
     setTimeout(() => {
