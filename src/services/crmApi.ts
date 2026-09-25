@@ -207,11 +207,10 @@ export async function deleteContact(leadId: string, token?: string | null): Prom
 }
 
 /**
- * Obtener perfil de usuario desde el backend si existe
+ * Obtener perfil de usuario desde el backend (público para visitantes o autenticado para el dueño)
  */
 export async function getProfile(token?: string | null): Promise<Partial<any> | null> {
   const effectiveToken = token || getStoredToken();
-  if (!effectiveToken) return null;
 
   try {
     const response = await fetch(`${CRM_API_URL}/profile/`, {

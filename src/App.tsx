@@ -71,32 +71,75 @@ export default function App() {
 
   const [activities, setActivities] = useState<ActivityItem[]>(INITIAL_ACTIVITY);
 
-  // Sincronizar leads y perfil con el backend de Django en Railway y Supabase al cargar y periódicamente (SOLO si el dueño está autenticado)
+  // 1. Sincronizar perfil público desde el servidor (tanto para visitantes como para el propietario)
+  useEffect(() => {
+    let isMounted = true;
+
+    crmApi.getProfile(authToken)
+      .then((serverProfile) => {
+        if (!isMounted || !serverProfile || !serverProfile.nombre) return;
+
+        setUser(prev => {
+          const cleaned: Partial<UserProfile> = {};
+          if (serverProfile.nombre) cleaned.nombre = serverProfile.nombre;
+          if (serverProfile.cargo) cleaned.cargo = serverProfile.cargo;
+          if (serverProfile.tagline) cleaned.tagline = serverProfile.tagline;
+          if (serverProfile.empresa) cleaned.empresa = serverProfile.empresa;
+          if (serverProfile.ubicacion) cleaned.ubicacion = serverProfile.ubicacion;
+          if (serverProfile.descripcion) cleaned.descripcion = serverProfile.descripcion;
+          if (serverProfile.telefono) cleaned.telefono = serverProfile.telefono;
+          if (serverProfile.email) cleaned.email = serverProfile.email;
+          if (serverProfile.whatsapp) cleaned.whatsapp = serverProfile.whatsapp;
+          if (serverProfile.avatarUrl) cleaned.avatarUrl = normalizeAssetUrl(serverProfile.avatarUrl, 'avatar');
+          if (serverProfile.coverUrl) cleaned.coverUrl = normalizeAssetUrl(serverProfile.coverUrl, 'cover');
+
+          // Fusión segura de redes sociales: solo sobreescribir las que tengan valor
+          if (serverProfile.redesSociales && typeof serverProfile.redesSociales === 'object') {
+            const hasAnyLink = Object.values(serverProfile.redesSociales).some(
+              v => typeof v === 'string' && v.trim().length > 0
+            );
+            if (hasAnyLink) {
+              cleaned.redesSociales = {
+                ...prev.redesSociales,
+                ...serverProfile.redesSociales,
+              };
+            }
+          }
+
+          // Fusión segura de secciones
+          if (serverProfile.sections && typeof serverProfile.sections === 'object') {
+            cleaned.sections = {
+              ...prev.sections,
+              ...serverProfile.sections,
+            };
+          }
+
+          const merged: UserProfile = {
+            ...prev,
+            ...cleaned,
+          };
+
+          try {
+            localStorage.setItem('bit_user_profile', JSON.stringify(merged));
+          } catch {}
+
+          return merged;
+        });
+      })
+      .catch((err) => {
+        console.warn('Conectando con almacenamiento local:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authToken]);
+
+  // 2. Sincronizar leads del CRM periódicamente (ESTRICTAMENTE SOLO si el dueño está autenticado)
   useEffect(() => {
     if (!authToken) return;
 
     let isMounted = true;
-
-    // Sincronizar perfil guardado en el servidor si existe
-    crmApi.getProfile(authToken)
-      .then((serverProfile) => {
-        if (isMounted && serverProfile && serverProfile.nombre) {
-          setUser(prev => {
-            const merged = { ...prev, ...serverProfile };
-            if (merged.avatarUrl) {
-              merged.avatarUrl = normalizeAssetUrl(merged.avatarUrl, 'avatar');
-            }
-            if (merged.coverUrl) {
-              merged.coverUrl = normalizeAssetUrl(merged.coverUrl, 'cover');
-            }
-            try {
-              localStorage.setItem('bit_user_profile', JSON.stringify(merged));
-            } catch {}
-            return merged;
-          });
-        }
-      })
-      .catch(() => {});
 
     const fetchLatestLeads = () => {
       crmApi.listContacts(authToken)
@@ -104,9 +147,7 @@ export default function App() {
           if (isMounted && serverLeads && serverLeads.length > 0) {
             setLeads(prev => {
               const map = new Map<string, CrmLead>();
-              // Primero cargamos los contactos de la base de datos Supabase
               serverLeads.forEach(l => map.set(l.id, l));
-              // Agregamos los que ya teníamos para no perder nada
               prev.forEach(l => {
                 if (!map.has(l.id)) map.set(l.id, l);
               });
@@ -125,10 +166,8 @@ export default function App() {
 
     fetchLatestLeads();
 
-    // Sincronizar cada 10 segundos para ver cambios entre móvil y PC sin refrescar
+    // Sincronizar leads cada 10 segundos
     const interval = setInterval(fetchLatestLeads, 10000);
-
-    // Sincronizar inmediatamente al volver a la pestaña
     const handleFocus = () => fetchLatestLeads();
     window.addEventListener('focus', handleFocus);
 
@@ -160,8 +199,10 @@ export default function App() {
 
   // Actualizar datos del usuario desde el CRM (fotos, links, títulos, descripciones)
   const handleUpdateUser = (updatedFields: Partial<UserProfile>) => {
+    let fullProfile: UserProfile = { ...user, ...updatedFields };
     setUser(prev => {
       const updated = { ...prev, ...updatedFields };
+      fullProfile = updated;
       try {
         localStorage.setItem('bit_user_profile', JSON.stringify(updated));
       } catch (err) {
@@ -172,7 +213,7 @@ export default function App() {
 
     // Guardar en backend si estamos autenticados
     if (authToken) {
-      crmApi.saveProfile(updatedFields, authToken).catch(err => {
+      crmApi.saveProfile(fullProfile, authToken).catch(err => {
         console.warn('Sincronización en segundo plano de perfil:', err);
       });
     }
@@ -576,7 +617,11 @@ export default function App() {
 
             {/* 6. Analytics */}
             {currentTab === 'analytics' && (
-              <AnalyticsView />
+              <AnalyticsView
+                leads={leads}
+                activities={activities}
+                device={device}
+              />
             )}
 
             {/* 7. Configuración / Branding */}

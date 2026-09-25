@@ -1,4 +1,5 @@
 import { INITIAL_USER_PROFILE } from '../data/mockData';
+import { UserProfile } from '../types';
 
 /**
  * Normaliza cualquier ruta de imagen/avatar para que sea universalmente consistente
@@ -17,6 +18,12 @@ export function normalizeAssetUrl(
   }
 
   const clean = url.trim();
+
+  // Si es un fallback generado automáticamente por ui-avatars.com (círculo con letras como "HE"),
+  // descartarlo y usar la fotografía real del perfil
+  if (clean.includes('ui-avatars.com')) {
+    return fallback;
+  }
 
   // 1. Data URLs optimizadas (Base64 JPEG/WebP/PNG) - válidas y autocontenidas en cualquier dispositivo
   if (clean.startsWith('data:image/')) {
@@ -45,4 +52,54 @@ export function normalizeAssetUrl(
   }
 
   return clean;
+}
+
+/**
+ * Repara y fusiona de forma segura los datos de perfil para evitar que
+ * queden en blanco las redes sociales, fotos o textos importantes al sincronizar
+ * entre el móvil, la PC, localStorage y el servidor backend.
+ */
+export function repairAndMergeUserProfile(
+  savedOrRemote: Partial<UserProfile> | null | undefined,
+  base: UserProfile = INITIAL_USER_PROFILE
+): UserProfile {
+  if (!savedOrRemote) return base;
+
+  // Restaurar nombre si fue reemplazado por texto de prueba genérico como 'hello'
+  const rawNombre = savedOrRemote.nombre?.trim();
+  const nombre = (rawNombre && rawNombre.toLowerCase() !== 'hello')
+    ? rawNombre
+    : base.nombre;
+
+  // Fusión profunda estricta para redes sociales: NUNCA dejar el objeto vacío ni perder iconos
+  const remoteRedes = savedOrRemote.redesSociales || {};
+  const redesSociales = {
+    linkedin: remoteRedes.linkedin?.trim() || base.redesSociales.linkedin,
+    instagram: remoteRedes.instagram?.trim() || base.redesSociales.instagram,
+    tiktok: remoteRedes.tiktok?.trim() || base.redesSociales.tiktok,
+    facebook: remoteRedes.facebook?.trim() || base.redesSociales.facebook,
+    website: remoteRedes.website?.trim() || base.redesSociales.website,
+  };
+
+  const avatarUrl = normalizeAssetUrl(savedOrRemote.avatarUrl, 'avatar');
+  const coverUrl = normalizeAssetUrl(savedOrRemote.coverUrl, 'cover');
+
+  return {
+    ...base,
+    ...savedOrRemote,
+    nombre,
+    avatarUrl,
+    coverUrl,
+    redesSociales,
+    tagline: savedOrRemote.tagline?.trim() || base.tagline,
+    empresa: savedOrRemote.empresa?.trim() || base.empresa,
+    cargo: savedOrRemote.cargo?.trim() || base.cargo,
+    ubicacion: savedOrRemote.ubicacion?.trim() || base.ubicacion,
+    whatsapp: savedOrRemote.whatsapp?.trim() || base.whatsapp,
+    telefono: savedOrRemote.telefono?.trim() || base.telefono,
+    email: savedOrRemote.email?.trim() || base.email,
+    descripcion: savedOrRemote.descripcion?.trim() || base.descripcion,
+    sections: savedOrRemote.sections || base.sections,
+    quote: savedOrRemote.quote?.trim() || base.quote,
+  };
 }
