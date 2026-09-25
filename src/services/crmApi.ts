@@ -229,20 +229,29 @@ export async function getProfile(token?: string | null): Promise<Partial<any> | 
 /**
  * Guardar perfil de usuario en el backend si el endpoint está disponible
  */
-export async function saveProfile(profileData: any, token?: string | null): Promise<boolean> {
+export async function saveProfile(profileData: any, token?: string | null): Promise<any> {
   const effectiveToken = token || getStoredToken();
-  if (!effectiveToken) return false;
-
-  try {
-    const response = await fetch(`${CRM_API_URL}/profile/`, {
-      method: 'PUT',
-      headers: authHeaders(effectiveToken),
-      body: JSON.stringify(profileData),
-    });
-
-    return response.ok;
-  } catch (err) {
-    console.warn('No se pudo sincronizar perfil al backend:', err);
-    return false;
+  if (!effectiveToken) {
+    throw new Error('Debes iniciar sesión con tu cuenta de propietario para guardar y sincronizar tu perfil en la nube.');
   }
+
+  const response = await fetch(`${CRM_API_URL}/profile/`, {
+    method: 'PUT',
+    headers: authHeaders(effectiveToken),
+    body: JSON.stringify(profileData),
+  });
+
+  if (response.status === 401) {
+    // El token guardado ya no es válido en el backend (ej: reinicio o cambio de contraseña)
+    localStorage.removeItem('bit_crm_token');
+    localStorage.removeItem('bit_crm_user');
+    throw new Error('Tu sesión ha expirado o ya no es válida. Por favor inicia sesión nuevamente en Acceso Propietario.');
+  }
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData?.detail || `Error (${response.status}) al sincronizar el perfil con el servidor.`);
+  }
+
+  return await response.json();
 }

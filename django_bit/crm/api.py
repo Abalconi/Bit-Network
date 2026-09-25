@@ -175,7 +175,7 @@ class ProfileAPIView(APIView):
         extra = profile.links if isinstance(profile.links, dict) else {}
 
         return Response({
-            'nombre': profile.nombre or target_user.email.split('@')[0],
+            'nombre': profile.nombre or '',
             'cargo': profile.cargo or extra.get('cargo', ''),
             'tagline': extra.get('tagline', profile.cargo or ''),
             'empresa': profile.empresa or extra.get('empresa', ''),

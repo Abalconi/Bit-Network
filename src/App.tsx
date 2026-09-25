@@ -77,11 +77,19 @@ export default function App() {
 
     crmApi.getProfile(authToken)
       .then((serverProfile) => {
-        if (!isMounted || !serverProfile || !serverProfile.nombre) return;
+        if (!isMounted || !serverProfile) return;
 
         setUser(prev => {
+          // Detectar si el servidor solo tiene el prefijo del correo (ej: 'dalebv87') porque aún no se ha guardado un nombre formal
+          const isRawEmailUsername = serverProfile.nombre && serverProfile.email && 
+            serverProfile.nombre.toLowerCase() === serverProfile.email.split('@')[0].toLowerCase() && 
+            !serverProfile.telefono && !serverProfile.cargo;
+
+          // Si el servidor solo tiene el prefijo de email pero localmente ya hay un nombre asignado, no sobreescribir con el prefijo
+          const shouldKeepLocalName = isRawEmailUsername && prev.nombre && prev.nombre !== serverProfile.nombre;
+
           const cleaned: Partial<UserProfile> = {};
-          if (serverProfile.nombre) cleaned.nombre = serverProfile.nombre;
+          if (serverProfile.nombre && !shouldKeepLocalName) cleaned.nombre = serverProfile.nombre;
           if (serverProfile.cargo) cleaned.cargo = serverProfile.cargo;
           if (serverProfile.tagline) cleaned.tagline = serverProfile.tagline;
           if (serverProfile.empresa) cleaned.empresa = serverProfile.empresa;
@@ -198,27 +206,31 @@ export default function App() {
   };
 
   // Actualizar datos del usuario desde el CRM (fotos, links, títulos, descripciones)
-  const handleUpdateUser = (updatedFields: Partial<UserProfile>) => {
-    let fullProfile: UserProfile = { ...user, ...updatedFields };
-    setUser(prev => {
-      const updated = { ...prev, ...updatedFields };
-      fullProfile = updated;
-      try {
-        localStorage.setItem('bit_user_profile', JSON.stringify(updated));
-      } catch (err) {
-        console.error('Error saving profile', err);
-      }
-      return updated;
-    });
+  const handleUpdateUser = async (updatedFields: Partial<UserProfile>) => {
+    const updated = { ...user, ...updatedFields };
+    setUser(updated);
+    try {
+      localStorage.setItem('bit_user_profile', JSON.stringify(updated));
+    } catch (err) {
+      console.error('Error saving profile', err);
+    }
 
     // Guardar en backend si estamos autenticados
     if (authToken) {
-      crmApi.saveProfile(fullProfile, authToken).catch(err => {
-        console.warn('Sincronización en segundo plano de perfil:', err);
-      });
+      try {
+        await crmApi.saveProfile(updated, authToken);
+        showToast('¡Perfil guardado y sincronizado con éxito!');
+      } catch (err: any) {
+        const errorMsg = err?.message || 'Error al sincronizar con el servidor';
+        if (errorMsg.includes('expirado') || errorMsg.includes('no es válida')) {
+          setAuthToken(null);
+          setIsLoginModalOpen(true);
+        }
+        showToast(errorMsg);
+      }
+    } else {
+      showToast('Guardado localmente. Inicia sesión como propietario para sincronizar en la nube.');
     }
-
-    showToast('Cambios guardados con éxito');
   };
 
   // Agregar nuevo lead (vía formulario de compartir contacto, WhatsApp o manual)
