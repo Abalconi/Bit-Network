@@ -45,6 +45,12 @@ export default function App() {
         // Normalizar rutas de avatares y fondos para garantizar consistencia universal entre dispositivos
         parsed.avatarUrl = normalizeAssetUrl(parsed.avatarUrl, 'avatar');
         parsed.coverUrl = normalizeAssetUrl(parsed.coverUrl, 'cover');
+        // Preservar textos predefinidos si están vacíos en almacenamiento
+        if (!parsed.tagline) parsed.tagline = INITIAL_USER_PROFILE.tagline;
+        if (!parsed.cargo) parsed.cargo = INITIAL_USER_PROFILE.cargo;
+        if (!parsed.empresa) parsed.empresa = INITIAL_USER_PROFILE.empresa;
+        if (!parsed.descripcion) parsed.descripcion = INITIAL_USER_PROFILE.descripcion;
+        if (!parsed.nombre) parsed.nombre = INITIAL_USER_PROFILE.nombre;
         return parsed;
       }
       return INITIAL_USER_PROFILE;
@@ -89,23 +95,17 @@ export default function App() {
           const shouldKeepLocalName = isRawEmailUsername && prev.nombre && prev.nombre !== serverProfile.nombre;
 
           const cleaned: Partial<UserProfile> = {};
-          if (serverProfile.nombre && !shouldKeepLocalName) cleaned.nombre = serverProfile.nombre;
-          if (serverProfile.cargo !== undefined) cleaned.cargo = serverProfile.cargo;
-          if (serverProfile.tagline !== undefined) cleaned.tagline = serverProfile.tagline;
-          if (serverProfile.empresa !== undefined) cleaned.empresa = serverProfile.empresa;
-          if (serverProfile.ubicacion !== undefined) cleaned.ubicacion = serverProfile.ubicacion;
-          if (serverProfile.descripcion !== undefined) cleaned.descripcion = serverProfile.descripcion;
-          if (serverProfile.telefono !== undefined) cleaned.telefono = serverProfile.telefono;
-          if (serverProfile.email !== undefined) cleaned.email = serverProfile.email;
-          if (serverProfile.whatsapp !== undefined) cleaned.whatsapp = serverProfile.whatsapp;
+          if (serverProfile.nombre && serverProfile.nombre.trim() && !shouldKeepLocalName) cleaned.nombre = serverProfile.nombre;
+          if (serverProfile.cargo && serverProfile.cargo.trim()) cleaned.cargo = serverProfile.cargo;
+          if (serverProfile.tagline && serverProfile.tagline.trim()) cleaned.tagline = serverProfile.tagline;
+          if (serverProfile.empresa && serverProfile.empresa.trim()) cleaned.empresa = serverProfile.empresa;
+          if (serverProfile.ubicacion && serverProfile.ubicacion.trim()) cleaned.ubicacion = serverProfile.ubicacion;
+          if (serverProfile.descripcion && serverProfile.descripcion.trim()) cleaned.descripcion = serverProfile.descripcion;
+          if (serverProfile.telefono && serverProfile.telefono.trim()) cleaned.telefono = serverProfile.telefono;
+          if (serverProfile.email && serverProfile.email.trim()) cleaned.email = serverProfile.email;
+          if (serverProfile.whatsapp && serverProfile.whatsapp.trim()) cleaned.whatsapp = serverProfile.whatsapp;
           if (serverProfile.avatarUrl) cleaned.avatarUrl = normalizeAssetUrl(serverProfile.avatarUrl, 'avatar');
           if (serverProfile.coverUrl) cleaned.coverUrl = normalizeAssetUrl(serverProfile.coverUrl, 'cover');
-
-          // Si el perfil proviene de la base de datos real (tiene email o nombre), asegurarse de que nunca se filtren teléfonos falsos
-          if (serverProfile.email) {
-            cleaned.telefono = serverProfile.telefono || '';
-            cleaned.whatsapp = serverProfile.whatsapp || '';
-          }
 
           // Fusión segura de redes sociales: solo sobreescribir las que tengan valor
           if (serverProfile.redesSociales && typeof serverProfile.redesSociales === 'object') {
