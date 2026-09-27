@@ -12,8 +12,8 @@ export const INITIAL_USER_PROFILE: UserProfile = {
   descripcion: 'Especialista en analítica predictiva, arquitectura de datos y crecimiento empresarial. Conectando personas y tecnología para transformar decisiones complejas en resultados claros.',
   avatarUrl: avatarImg,
   coverUrl: coverImg,
-  telefono: '+502 5555 1234',
-  whatsapp: '+502 5555 1234',
+  telefono: '+502 5697 7540',
+  whatsapp: '+502 5697 7540',
   ubicacion: 'Ciudad de Guatemala, GT',
   handle: 'alessandra',
   redesSociales: {
