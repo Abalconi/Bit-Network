@@ -172,7 +172,7 @@ export const TrainingsModal: React.FC<TrainingsModalProps> = ({
               </p>
             </div>
             <a
-              href="https://wa.me/50255550000?text=Hola,%20tengo%20mi%20mes%20gratis%20de%20CRM%20y%20deseo%20agendar%20mi%20capacitacion"
+              href="https://wa.me/50256977540?text=Hola,%20tengo%20mi%20mes%20gratis%20de%20CRM%20y%20deseo%20agendar%20mi%20capacitacion"
               target="_blank"
               rel="noopener noreferrer"
               className="px-3 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-xs transition whitespace-nowrap shadow"
