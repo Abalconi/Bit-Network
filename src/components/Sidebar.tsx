@@ -13,7 +13,9 @@ import {
   Sparkles,
   GraduationCap,
   Store,
-  LogOut
+  LogOut,
+  Lock,
+  Crown
 } from 'lucide-react';
 import { BitLogo } from './BitLogo';
 import { HolographicSticker } from './HolographicSticker';
@@ -25,6 +27,7 @@ export type NavTabId =
   | 'leads' 
   | 'crm' 
   | 'analytics' 
+  | 'subscription'
   | 'settings';
 
 interface SidebarProps {
@@ -36,6 +39,8 @@ interface SidebarProps {
   onOpenPublicProfile: () => void;
   onOpenTrainings?: () => void;
   onLogout?: () => void;
+  canAccessCrm?: boolean;
+  isSuperAdmin?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -47,14 +52,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenPublicProfile,
   onOpenTrainings,
   onLogout,
+  canAccessCrm = false,
+  isSuperAdmin = false,
 }) => {
   const navItems = [
     { id: 'dashboard' as NavTabId, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'profile' as NavTabId, label: 'Mi perfil', icon: User },
-    { id: 'nfc' as NavTabId, label: 'NFC / Bit', icon: Radio },
-    { id: 'leads' as NavTabId, label: 'Leads', icon: Users, badge: leadsCount },
-    { id: 'crm' as NavTabId, label: 'CRM Pipeline', icon: Kanban },
-    { id: 'analytics' as NavTabId, label: 'Analytics', icon: TrendingUp },
+    { id: 'nfc' as NavTabId, label: 'NFC / Generador', icon: Radio },
+    { id: 'leads' as NavTabId, label: 'Leads CRM', icon: Users, badge: leadsCount, requiresPro: !canAccessCrm },
+    { id: 'crm' as NavTabId, label: 'CRM Pipeline', icon: Kanban, requiresPro: !canAccessCrm },
+    { id: 'analytics' as NavTabId, label: 'Analytics', icon: TrendingUp, requiresPro: !canAccessCrm },
+    { id: 'subscription' as NavTabId, label: 'Suscripción CRM', icon: Sparkles, isHighlight: !canAccessCrm },
     { id: 'settings' as NavTabId, label: 'Configuración', icon: Settings },
   ];
 
@@ -104,15 +112,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-blue-400' : 'text-slate-400'}`} />
-                  <span>{item.label}</span>
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-blue-400' : item.isHighlight ? 'text-amber-400' : 'text-slate-400'}`} />
+                  <span className={item.isHighlight && !isActive ? 'text-amber-300 font-semibold' : ''}>{item.label}</span>
                 </div>
 
-                {item.badge !== undefined && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                    {item.badge}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {item.requiresPro && (
+                    <span className="flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300 border border-amber-400/30">
+                      <Lock className="w-2.5 h-2.5" />
+                      <span>PRO</span>
+                    </span>
+                  )}
+
+                  {item.badge !== undefined && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
               </button>
             );
           })}

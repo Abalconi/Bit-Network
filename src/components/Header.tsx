@@ -72,6 +72,11 @@ export const Header: React.FC<HeaderProps> = ({
           title: 'Analytics & Rendimiento',
           subtitle: 'Métricas detalladas de interacciones, conversiones y canales.',
         };
+      case 'subscription':
+        return {
+          title: 'Suscripción Recurrente BIT Pro',
+          subtitle: 'Planes mensual Q. 39.99 y anual Q. 420.00 con débito automático.',
+        };
       case 'branding':
         return {
           title: 'Branding & Identidad',

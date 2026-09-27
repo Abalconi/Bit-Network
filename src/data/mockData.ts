@@ -58,6 +58,49 @@ export const INITIAL_USER_PROFILE: UserProfile = {
   quote: 'Transformando datos en decisiones.',
 };
 
+export const BLANK_USER_PROFILE: UserProfile = {
+  id: 'usr-new-client',
+  email: '',
+  nombre: '',
+  cargo: '',
+  empresa: '',
+  tagline: '',
+  descripcion: '',
+  avatarUrl: '',
+  coverUrl: '',
+  telefono: '',
+  whatsapp: '',
+  ubicacion: '',
+  handle: 'mi-bit',
+  redesSociales: {
+    linkedin: '',
+    instagram: '',
+    tiktok: '',
+    facebook: '',
+    website: '',
+  },
+  sections: {
+    sobreMi: {
+      titulo: 'Sobre mí',
+      subtitulo: '',
+      contenido: '',
+      skills: [],
+    },
+    miTrabajo: {
+      titulo: 'Mi trabajo',
+      subtitulo: '',
+      proyectos: [],
+    },
+    contactame: {
+      titulo: 'Contáctame',
+      subtitulo: 'Hablemos, estoy disponible',
+      disponible: true,
+      mensaje: '',
+    },
+  },
+  quote: '',
+};
+
 export const INITIAL_BIT_DEVICE: BitDevice = {
   idInterno: 'BIT-00892',
   tokenPublico: '8F3K2x9Z',

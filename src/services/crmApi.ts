@@ -57,7 +57,8 @@ export async function login(email: string, password: string) {
   });
 
   if (!response.ok) {
-    throw new Error('No se pudo iniciar sesión. Revisa tus credenciales.');
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData?.detail || 'No se pudo iniciar sesión. Revisa tus credenciales.');
   }
 
   const data = await response.json() as {token: string; user: {id: number; email: string}};
@@ -68,9 +69,113 @@ export async function login(email: string, password: string) {
   return data;
 }
 
+export async function register(data: { email: string; password: string; nombre: string }) {
+  const response = await fetch(`${CRM_API_URL}/register/`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData?.detail || 'No se pudo activar el nuevo BIT. Intenta de nuevo.');
+  }
+
+  const result = await response.json() as {
+    token: string;
+    user: { id: number; email: string };
+    profile: any;
+  };
+
+  if (result.token) {
+    localStorage.setItem('bit_crm_token', result.token);
+    localStorage.setItem('bit_crm_user', JSON.stringify(result.user));
+  }
+  return result;
+}
+
 export function getStoredToken(): string | null {
   return localStorage.getItem('bit_crm_token');
 }
+
+export function getStoredUser(): { id: number; email: string; is_superuser?: boolean; subscription_status?: string; subscription_plan?: string } | null {
+  try {
+    const raw = localStorage.getItem('bit_crm_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface SubscriptionInfo {
+  status: 'active' | 'inactive';
+  plan: 'mensual' | 'anual' | 'superadmin' | null;
+  is_superuser: boolean;
+  can_access_crm: boolean;
+  valid_until?: string | null;
+  pricing: {
+    monthly: { price_gtq: number; period: string };
+    annual: { price_gtq: number; period: string; savings_gtq?: number };
+  };
+}
+
+export async function getSubscription(token?: string | null): Promise<SubscriptionInfo> {
+  const effectiveToken = token || getStoredToken();
+  if (!effectiveToken) {
+    return {
+      status: 'inactive',
+      plan: null,
+      is_superuser: false,
+      can_access_crm: false,
+      pricing: {
+        monthly: { price_gtq: 39.99, period: 'mensual' },
+        annual: { price_gtq: 420.00, period: 'anual', savings_gtq: 59.88 }
+      }
+    };
+  }
+
+  const response = await fetch(`${CRM_API_URL}/subscription/`, {
+    headers: authHeaders(effectiveToken),
+  });
+
+  if (!response.ok) {
+    const storedUser = getStoredUser();
+    const isSuper = Boolean(storedUser?.is_superuser);
+    return {
+      status: isSuper ? 'active' : 'inactive',
+      plan: isSuper ? 'superadmin' : null,
+      is_superuser: isSuper,
+      can_access_crm: isSuper,
+      pricing: {
+        monthly: { price_gtq: 39.99, period: 'mensual' },
+        annual: { price_gtq: 420.00, period: 'anual', savings_gtq: 59.88 }
+      }
+    };
+  }
+
+  return await response.json();
+}
+
+export async function updateSubscription(plan: 'monthly' | 'annual', action: 'activate' | 'cancel' = 'activate', token?: string | null) {
+  const effectiveToken = token || getStoredToken();
+  if (!effectiveToken) {
+    throw new Error('Debes estar autenticado para gestionar tu suscripción.');
+  }
+
+  const response = await fetch(`${CRM_API_URL}/subscription/`, {
+    method: 'POST',
+    headers: authHeaders(effectiveToken),
+    body: JSON.stringify({ plan, action }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Error al actualizar suscripción.');
+  }
+
+  return await response.json();
+}
+
 
 export async function listContacts(token?: string | null): Promise<CrmLead[]> {
   const effectiveToken = token || getStoredToken();

@@ -33,12 +33,14 @@ interface CustomizeProfileViewProps {
   user: UserProfile;
   onUpdateUser: (updated: Partial<UserProfile>) => Promise<any> | void;
   onOpenPublicProfile: () => void;
+  onResetToBlank?: () => void;
 }
 
 export const CustomizeProfileView: React.FC<CustomizeProfileViewProps> = ({
   user,
   onUpdateUser,
-  onOpenPublicProfile
+  onOpenPublicProfile,
+  onResetToBlank
 }) => {
   const [formData, setFormData] = useState<UserProfile>(user);
   const [activeTab, setActiveTab] = useState<'general' | 'links' | 'sections'>('general');
@@ -129,17 +131,38 @@ export const CustomizeProfileView: React.FC<CustomizeProfileViewProps> = ({
     }
   };
 
-  // Guardar cambios generales en el perfil (con sincronización en la nube y persistencia)
+  // Limpieza y normalización de WhatsApp/Teléfono
+  const normalizePhoneNumber = (raw: string, isWhatsApp = false): string => {
+    let clean = raw.trim();
+    if (clean.includes('wa.me/')) {
+      clean = clean.split('wa.me/')[1]?.split('?')[0] || clean;
+    }
+    const digits = clean.replace(/\D/g, '');
+    if (digits.length === 8 && !clean.startsWith('+')) {
+      return `+502 ${digits.slice(0, 4)} ${digits.slice(4)}`;
+    }
+    return clean;
+  };
+
+  // Guardar cambios generales en el perfil (con sincronización en la nube y persistencia en Supabase)
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     setSaveError(null);
+
+    const payload = {
+      ...formData,
+      whatsapp: normalizePhoneNumber(formData.whatsapp || '', true),
+      telefono: normalizePhoneNumber(formData.telefono || '', false),
+    };
+
     try {
-      await onUpdateUser(formData);
+      await onUpdateUser(payload);
+      setFormData(payload);
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 4000);
     } catch (err: any) {
-      setSaveError(err?.message || 'Error al guardar los cambios en el servidor');
+      setSaveError(err?.message || 'Error al guardar los cambios en Supabase');
     } finally {
       setIsSaving(false);
     }
@@ -176,6 +199,18 @@ export const CustomizeProfileView: React.FC<CustomizeProfileViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {onResetToBlank && (
+            <button
+              type="button"
+              onClick={onResetToBlank}
+              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer border border-slate-200"
+              title="Borra todos los datos predeterminados para dejar el perfil 100% en blanco"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Empezar en blanco</span>
+            </button>
+          )}
+
           <button
             onClick={onOpenPublicProfile}
             className="px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer border border-indigo-200/60"
@@ -654,6 +689,44 @@ export const CustomizeProfileView: React.FC<CustomizeProfileViewProps> = ({
                     type="text"
                     value={formData.quote}
                     onChange={(e) => setFormData({ ...formData, quote: e.target.value })}
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                </div>
+
+                {/* WhatsApp Directo */}
+                <div>
+                  <label className="font-bold text-xs text-slate-700 block mb-1">
+                    WhatsApp (con código de país ej: +502 5555 1234)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.whatsapp}
+                    onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                    onBlur={() => {
+                      if (formData.whatsapp) {
+                        setFormData({ ...formData, whatsapp: normalizePhoneNumber(formData.whatsapp, true) });
+                      }
+                    }}
+                    placeholder="+502 5555 1234"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                </div>
+
+                {/* Teléfono para llamadas y vCard */}
+                <div>
+                  <label className="font-bold text-xs text-slate-700 block mb-1">
+                    Teléfono (Llamadas / Guardar en contactos)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.telefono}
+                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                    onBlur={() => {
+                      if (formData.telefono) {
+                        setFormData({ ...formData, telefono: normalizePhoneNumber(formData.telefono, false) });
+                      }
+                    }}
+                    placeholder="+502 5555 1234"
                     className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
                 </div>

@@ -19,9 +19,11 @@ import {
   AlertCircle,
   Lock,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
 import { UserProfile } from '../types';
+import { INITIAL_USER_PROFILE } from '../data/mockData';
 import { ShareContactModal } from './ShareContactModal';
 import { ProfileSectionDetailModal } from './ProfileSectionDetailModal';
 import { processUploadedImage } from '../utils/imageUpload';
@@ -193,6 +195,30 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
 
         {/* Recorte curvo blanco inferior que abarca el 100% del ancho de la pantalla */}
         <div className="absolute -bottom-2 left-0 right-0 h-12 sm:h-16 md:h-20 bg-white rounded-t-[50%] scale-x-125" />
+
+        {/* Botón superior: Solo visible si el BIT está sin activar (para que el nuevo cliente lo active) o si el dueño ya tiene sesión iniciada */}
+        <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+          {isAuthenticated ? (
+            <button
+              type="button"
+              onClick={onOpenCrm}
+              className="px-3.5 py-2 rounded-full bg-slate-900/85 hover:bg-slate-950 text-white text-xs font-bold backdrop-blur-md border border-white/20 shadow-xl transition active:scale-95 cursor-pointer flex items-center gap-1.5"
+            >
+              <span>Mi Panel CRM</span>
+              <span>→</span>
+            </button>
+          ) : (!user.nombre || user.nombre.trim() === '' || !user.email) && onRequestLogin ? (
+            /* La burbuja de "Activar BIT" solo se muestra cuando el BIT está nuevo/sin datos */
+            <button
+              type="button"
+              onClick={onRequestLogin}
+              className="px-3.5 py-2 rounded-full bg-indigo-600/90 hover:bg-indigo-600 text-white text-xs font-bold backdrop-blur-md border border-white/30 shadow-xl transition active:scale-95 cursor-pointer flex items-center gap-1.5 animate-pulse hover:animate-none"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
+              <span>Activar este BIT</span>
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* ============================================================== */}
@@ -328,31 +354,29 @@ export const PublicFullScreenProfile: React.FC<PublicFullScreenProfileProps> = (
             </a>
           )}
 
-          {/* WhatsApp (Solo si el propietario ha configurado su WhatsApp o Teléfono) */}
-          {Boolean((user.whatsapp?.trim() || user.telefono?.trim())) && (
-            <a
-              href={`https://wa.me/${(user.whatsapp?.trim() || user.telefono?.trim() || '').replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(user.nombre)},%20acabo%20de%20escanear%20tu%20Bit.`}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => {
-                if (onLeadCapture) {
-                  onLeadCapture({
-                    nombre: 'Interesado vía WhatsApp',
-                    telefono: '',
-                    email: '',
-                    empresa: '',
-                    mensaje: 'Inició conversación directa por WhatsApp desde el perfil BIT.',
-                    canal: 'WhatsApp',
-                    origen: 'WhatsApp Directo',
-                  });
-                }
-              }}
-              aria-label="WhatsApp"
-              className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#25D366] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition shadow-sm"
-            >
-              <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
-            </a>
-          )}
+          {/* WhatsApp */}
+          <a
+            href={`https://wa.me/${(user.whatsapp || user.telefono || INITIAL_USER_PROFILE.whatsapp).replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(user.nombre || INITIAL_USER_PROFILE.nombre)},%20acabo%20de%20escanear%20tu%20Bit.`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => {
+              if (onLeadCapture) {
+                onLeadCapture({
+                  nombre: 'Interesado vía WhatsApp',
+                  telefono: '',
+                  email: '',
+                  empresa: '',
+                  mensaje: 'Inició conversación directa por WhatsApp desde el perfil BIT.',
+                  canal: 'WhatsApp',
+                  origen: 'WhatsApp Directo',
+                });
+              }
+            }}
+            aria-label="WhatsApp"
+            className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#25D366] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition shadow-sm"
+          >
+            <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
+          </a>
 
           {/* Página Web */}
           {user.redesSociales.website && (

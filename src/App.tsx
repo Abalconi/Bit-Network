@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   INITIAL_USER_PROFILE, 
+  BLANK_USER_PROFILE,
   INITIAL_BIT_DEVICE, 
   INITIAL_LEADS, 
   INITIAL_ACTIVITY 
@@ -28,6 +29,7 @@ import { PublicFullScreenProfile } from './components/PublicFullScreenProfile';
 import { NfcTapSimulatorModal } from './components/NfcTapSimulatorModal';
 import { TrainingsModal } from './components/TrainingsModal';
 import { LoginModal } from './components/LoginModal';
+import { SubscriptionPaywall } from './components/views/SubscriptionPaywall';
 import { CheckCircle2 } from 'lucide-react';
 import { normalizeAssetUrl } from './utils/assetSync';
 
@@ -36,48 +38,46 @@ export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(() => crmApi.getStoredToken());
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  // Estado del perfil del usuario (persistido en localStorage para no perder cambios de fotos/links/textos)
-  const [user, setUser] = useState<UserProfile>(() => {
-    try {
-      const saved = localStorage.getItem('bit_user_profile');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Normalizar rutas de avatares y fondos para garantizar consistencia universal entre dispositivos
-        parsed.avatarUrl = normalizeAssetUrl(parsed.avatarUrl, 'avatar');
-        parsed.coverUrl = normalizeAssetUrl(parsed.coverUrl, 'cover');
-        // Preservar textos predefinidos si están vacíos en almacenamiento
-        if (!parsed.tagline) parsed.tagline = INITIAL_USER_PROFILE.tagline;
-        if (!parsed.cargo) parsed.cargo = INITIAL_USER_PROFILE.cargo;
-        if (!parsed.empresa) parsed.empresa = INITIAL_USER_PROFILE.empresa;
-        if (!parsed.descripcion) parsed.descripcion = INITIAL_USER_PROFILE.descripcion;
-        if (!parsed.nombre) parsed.nombre = INITIAL_USER_PROFILE.nombre;
-        return parsed;
-      }
-      return INITIAL_USER_PROFILE;
-    } catch {
-      return INITIAL_USER_PROFILE;
-    }
-  });
+  // Estado del perfil del usuario (la única fuente de la verdad es la base de datos de Supabase)
+  const [user, setUser] = useState<UserProfile>(INITIAL_USER_PROFILE);
 
   const [device, setDevice] = useState<BitDevice>(INITIAL_BIT_DEVICE);
 
-  // Leads con persistencia offline-first en localStorage
-  const [leads, setLeads] = useState<CrmLead[]>(() => {
-    try {
-      const saved = localStorage.getItem('bit_crm_leads');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.error('Error loading leads from storage', e);
-    }
-    return INITIAL_LEADS;
-  });
+  // Leads obtenidos y sincronizados directamente desde Supabase
+  const [leads, setLeads] = useState<CrmLead[]>(INITIAL_LEADS);
 
   const [activities, setActivities] = useState<ActivityItem[]>(INITIAL_ACTIVITY);
 
-  // 1. Sincronizar perfil público desde el servidor (tanto para visitantes como para el propietario)
+  // Estado de suscripción en Recurrente / Supabase
+  // El superadmin siempre tiene acceso garantizado al CRM sin pagar
+  const [subscription, setSubscription] = useState<crmApi.SubscriptionInfo | null>(() => {
+    const stored = crmApi.getStoredUser();
+    const isSuper = Boolean(stored?.is_superuser);
+    return {
+      status: isSuper ? 'active' : (stored?.subscription_status === 'active' ? 'active' : 'inactive'),
+      plan: isSuper ? 'superadmin' : (stored?.subscription_plan as any || null),
+      is_superuser: isSuper,
+      can_access_crm: isSuper || stored?.subscription_status === 'active',
+      pricing: {
+        monthly: { price_gtq: 39.99, period: 'mensual' },
+        annual: { price_gtq: 420.00, period: 'anual', savings_gtq: 59.88 }
+      }
+    };
+  });
+
+  // Consultar estado de suscripción en el backend al tener sesión iniciada
+  useEffect(() => {
+    if (!authToken) return;
+    crmApi.getSubscription(authToken)
+      .then((sub) => {
+        if (sub) {
+          setSubscription(sub);
+        }
+      })
+      .catch((err) => console.warn('Error al verificar suscripción:', err));
+  }, [authToken]);
+
+  // 1. Sincronizar perfil público desde Supabase en tiempo real (tanto para visitantes como para el propietario)
   useEffect(() => {
     let isMounted = true;
 
@@ -128,20 +128,14 @@ export default function App() {
             };
           }
 
-          const merged: UserProfile = {
+          return {
             ...prev,
             ...cleaned,
           };
-
-          try {
-            localStorage.setItem('bit_user_profile', JSON.stringify(merged));
-          } catch {}
-
-          return merged;
         });
       })
       .catch((err) => {
-        console.warn('Conectando con almacenamiento local:', err);
+        console.warn('Conectando con Supabase:', err);
       });
 
     return () => {
@@ -149,7 +143,7 @@ export default function App() {
     };
   }, [authToken]);
 
-  // 2. Sincronizar leads del CRM periódicamente (ESTRICTAMENTE SOLO si el dueño está autenticado)
+  // 2. Sincronizar leads del CRM periódicamente desde Supabase (ESTRICTAMENTE SOLO si el dueño está autenticado)
   useEffect(() => {
     if (!authToken) return;
 
@@ -159,22 +153,11 @@ export default function App() {
       crmApi.listContacts(authToken)
         .then((serverLeads) => {
           if (isMounted && serverLeads && serverLeads.length > 0) {
-            setLeads(prev => {
-              const map = new Map<string, CrmLead>();
-              serverLeads.forEach(l => map.set(l.id, l));
-              prev.forEach(l => {
-                if (!map.has(l.id)) map.set(l.id, l);
-              });
-              const merged = Array.from(map.values());
-              try {
-                localStorage.setItem('bit_crm_leads', JSON.stringify(merged));
-              } catch {}
-              return merged;
-            });
+            setLeads(serverLeads);
           }
         })
         .catch((err) => {
-          console.warn('Conectando con base de datos local y remota:', err);
+          console.warn('Conectando con Supabase:', err);
         });
     };
 
@@ -215,28 +198,17 @@ export default function App() {
   const handleUpdateUser = async (updatedFields: Partial<UserProfile>) => {
     const updated = { ...user, ...updatedFields };
     setUser(updated);
-    try {
-      localStorage.setItem('bit_user_profile', JSON.stringify(updated));
-    } catch (err) {
-      console.error('Error saving profile', err);
-    }
 
-    // Guardar en backend si estamos autenticados
+    // Guardar en backend (Supabase) si estamos autenticados
     if (authToken) {
       try {
         const responseData = await crmApi.saveProfile(updated, authToken);
         if (responseData && responseData.profile) {
-          setUser(prev => {
-            const confirmed = { ...prev, ...responseData.profile };
-            try {
-              localStorage.setItem('bit_user_profile', JSON.stringify(confirmed));
-            } catch {}
-            return confirmed;
-          });
+          setUser(prev => ({ ...prev, ...responseData.profile }));
         }
-        showToast('¡Perfil guardado y sincronizado con éxito en la nube!');
+        showToast('¡Perfil guardado y sincronizado con éxito en Supabase!');
       } catch (err: any) {
-        const errorMsg = err?.message || 'Error al sincronizar con el servidor';
+        const errorMsg = err?.message || 'Error al sincronizar con Supabase';
         if (errorMsg.includes('expirado') || errorMsg.includes('no es válida')) {
           setAuthToken(null);
           setIsLoginModalOpen(true);
@@ -245,7 +217,50 @@ export default function App() {
         throw err;
       }
     } else {
-      showToast('Guardado localmente. Inicia sesión como propietario para sincronizar en la nube.');
+      showToast('Inicia sesión como propietario para sincronizar en Supabase.');
+    }
+  };
+
+  // Resetear perfil a blanco para que un nuevo cliente empiece desde cero
+  const handleResetToBlank = async () => {
+    const blank = {
+      ...BLANK_USER_PROFILE,
+      email: user.email || '',
+      nombre: user.nombre || '',
+    };
+    setUser(blank);
+    if (authToken) {
+      try {
+        await crmApi.saveProfile(blank, authToken);
+        showToast('¡Perfil vaciado! Listo para ingresar tus propios datos.');
+      } catch (err) {
+        console.warn('Error al vaciar perfil en Supabase:', err);
+      }
+    }
+  };
+
+  // Manejar activación de suscripción en Recurrente (o simulación exitosa)
+  const handleActivateSubscription = async (plan: 'monthly' | 'annual') => {
+    if (!authToken) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+    try {
+      const res = await crmApi.updateSubscription(plan, 'activate', authToken);
+      setSubscription({
+        status: 'active',
+        plan: plan === 'annual' ? 'anual' : 'mensual',
+        is_superuser: Boolean(subscription?.is_superuser),
+        can_access_crm: true,
+        pricing: {
+          monthly: { price_gtq: 39.99, period: 'mensual' },
+          annual: { price_gtq: 420.00, period: 'anual', savings_gtq: 59.88 }
+        }
+      });
+      showToast(`¡Suscripción ${plan === 'annual' ? 'Anual' : 'Mensual'} activada con Recurrente! Acceso concedido al CRM.`);
+      setCurrentTab('crm');
+    } catch (err: any) {
+      showToast(err?.message || 'Error al procesar la suscripción.');
     }
   };
 
@@ -275,16 +290,8 @@ export default function App() {
       }] : []
     };
 
-    // Actualizar estado y almacenamiento local de inmediato para que NUNCA se pierda al refrescar
-    setLeads(prev => {
-      const updated = [newLead, ...prev];
-      try {
-        localStorage.setItem('bit_crm_leads', JSON.stringify(updated));
-      } catch (e) {
-        console.error('Error saving to localStorage', e);
-      }
-      return updated;
-    });
+    // Actualizar estado de React de inmediato
+    setLeads(prev => [newLead, ...prev]);
 
     const newActivity: ActivityItem = {
       id: `act-${Date.now()}`,
@@ -297,7 +304,7 @@ export default function App() {
 
     showToast(`¡Contacto recibido! ${newLead.nombre} guardado en el CRM`);
 
-    // Sincronizar en segundo plano con el backend de Django en Railway y Supabase
+    // Sincronizar directamente con Supabase
     try {
       const savedLead = await crmApi.createContact({
         nombre: newLead.nombre,
@@ -311,16 +318,10 @@ export default function App() {
       });
 
       if (savedLead && savedLead.id) {
-        setLeads(prev => {
-          const replaced = prev.map(l => l.id === tempId ? savedLead : l);
-          try {
-            localStorage.setItem('bit_crm_leads', JSON.stringify(replaced));
-          } catch {}
-          return replaced;
-        });
+        setLeads(prev => prev.map(l => l.id === tempId ? savedLead : l));
       }
     } catch (err) {
-      console.warn('Contacto preservado en almacenamiento local:', err);
+      console.warn('Error al guardar lead en Supabase:', err);
     }
   };
 
@@ -466,14 +467,38 @@ export default function App() {
           }}
         />
 
-        {/* Modal de login para el propietario */}
+        {/* Modal de login / activación para el cliente */}
         <LoginModal
           isOpen={isLoginModalOpen}
           onClose={() => setIsLoginModalOpen(false)}
-          onSuccess={(token) => {
+          onSuccess={(token, loggedUser, newProfile) => {
             setAuthToken(token);
-            setAppMode('crm');
-            showToast('¡Bienvenido! Sesión iniciada con éxito');
+            const isSuper = Boolean(loggedUser?.is_superuser);
+            setSubscription({
+              status: isSuper ? 'active' : (loggedUser?.subscription_status === 'active' ? 'active' : 'inactive'),
+              plan: isSuper ? 'superadmin' : (loggedUser?.subscription_plan as any || null),
+              is_superuser: isSuper,
+              can_access_crm: isSuper || loggedUser?.subscription_status === 'active',
+              pricing: {
+                monthly: { price_gtq: 39.99, period: 'mensual' },
+                annual: { price_gtq: 420.00, period: 'anual', savings_gtq: 59.88 }
+              }
+            });
+
+            if (newProfile) {
+              // Cliente nuevo que acaba de auto-activar su BIT
+              setUser({
+                ...BLANK_USER_PROFILE,
+                nombre: newProfile.nombre || '',
+                email: loggedUser.email || '',
+              });
+              setAppMode('crm');
+              setCurrentTab('profile');
+              showToast('¡Felicidades! Tu BIT ha sido activado. Personaliza tu perfil.');
+            } else {
+              setAppMode('crm');
+              showToast('¡Bienvenido! Sesión iniciada con éxito');
+            }
           }}
         />
       </>
@@ -514,9 +539,31 @@ export default function App() {
         <LoginModal
           isOpen={isLoginModalOpen}
           onClose={() => setIsLoginModalOpen(false)}
-          onSuccess={(token) => {
+          onSuccess={(token, loggedUser, newProfile) => {
             setAuthToken(token);
-            showToast('¡Bienvenido! Sesión iniciada');
+            const isSuper = Boolean(loggedUser?.is_superuser);
+            setSubscription({
+              status: isSuper ? 'active' : (loggedUser?.subscription_status === 'active' ? 'active' : 'inactive'),
+              plan: isSuper ? 'superadmin' : (loggedUser?.subscription_plan as any || null),
+              is_superuser: isSuper,
+              can_access_crm: isSuper || loggedUser?.subscription_status === 'active',
+              pricing: {
+                monthly: { price_gtq: 39.99, period: 'mensual' },
+                annual: { price_gtq: 420.00, period: 'anual', savings_gtq: 59.88 }
+              }
+            });
+
+            if (newProfile) {
+              setUser({
+                ...BLANK_USER_PROFILE,
+                nombre: newProfile.nombre || '',
+                email: loggedUser.email || '',
+              });
+              setCurrentTab('profile');
+              showToast('¡Felicidades! Tu BIT ha sido activado. Personaliza tu perfil.');
+            } else {
+              showToast('¡Bienvenido! Sesión iniciada');
+            }
           }}
         />
       </div>
@@ -565,6 +612,8 @@ export default function App() {
           onOpenPublicProfile={() => setAppMode('public_profile')}
           onOpenTrainings={() => setIsTrainingsOpen(true)}
           onLogout={handleLogout}
+          canAccessCrm={Boolean(subscription?.can_access_crm)}
+          isSuperAdmin={Boolean(subscription?.is_superuser)}
         />
 
         {/* Contenedor Principal con Header y Vistas */}
@@ -595,6 +644,7 @@ export default function App() {
                 user={user}
                 onUpdateUser={handleUpdateUser}
                 onOpenPublicProfile={() => setAppMode('public_profile')}
+                onResetToBlank={handleResetToBlank}
               />
             )}
 
@@ -621,38 +671,75 @@ export default function App() {
               />
             )}
 
-            {/* 4. Leads */}
+            {/* 4. Leads (Protegido por Suscripción - Superadmin siempre tiene acceso) */}
             {currentTab === 'leads' && (
-              <LeadsView
-                leads={leads}
-                activities={activities}
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                onSelectLead={setSelectedLead}
-                onAddNewContact={() => setIsNewContactOpen(true)}
-              />
+              !subscription?.can_access_crm ? (
+                <SubscriptionPaywall
+                  subscription={subscription}
+                  onActivateSubscription={handleActivateSubscription}
+                  onOpenPublicProfile={() => setAppMode('public_profile')}
+                  userEmail={user.email}
+                />
+              ) : (
+                <LeadsView
+                  leads={leads}
+                  activities={activities}
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  onSelectLead={setSelectedLead}
+                  onAddNewContact={() => setIsNewContactOpen(true)}
+                />
+              )
             )}
 
-            {/* 5. CRM Pipeline */}
+            {/* 5. CRM Pipeline (Protegido por Suscripción - Superadmin siempre tiene acceso) */}
             {currentTab === 'crm' && (
-              <SalesPipelineView
-                leads={leads}
-                onSelectLead={setSelectedLead}
-                onUpdateLeadStage={handleUpdateLeadStage}
-                onAddNewContact={() => setIsNewContactOpen(true)}
-              />
+              !subscription?.can_access_crm ? (
+                <SubscriptionPaywall
+                  subscription={subscription}
+                  onActivateSubscription={handleActivateSubscription}
+                  onOpenPublicProfile={() => setAppMode('public_profile')}
+                  userEmail={user.email}
+                />
+              ) : (
+                <SalesPipelineView
+                  leads={leads}
+                  onSelectLead={setSelectedLead}
+                  onUpdateLeadStage={handleUpdateLeadStage}
+                  onAddNewContact={() => setIsNewContactOpen(true)}
+                />
+              )
             )}
 
-            {/* 6. Analytics */}
+            {/* 6. Analytics (Protegido por Suscripción - Superadmin siempre tiene acceso) */}
             {currentTab === 'analytics' && (
-              <AnalyticsView
-                leads={leads}
-                activities={activities}
-                device={device}
+              !subscription?.can_access_crm ? (
+                <SubscriptionPaywall
+                  subscription={subscription}
+                  onActivateSubscription={handleActivateSubscription}
+                  onOpenPublicProfile={() => setAppMode('public_profile')}
+                  userEmail={user.email}
+                />
+              ) : (
+                <AnalyticsView
+                  leads={leads}
+                  activities={activities}
+                  device={device}
+                />
+              )
+            )}
+
+            {/* 7. Suscripción CRM / Planes Recurrente */}
+            {currentTab === 'subscription' && (
+              <SubscriptionPaywall
+                subscription={subscription}
+                onActivateSubscription={handleActivateSubscription}
+                onOpenPublicProfile={() => setAppMode('public_profile')}
+                userEmail={user.email}
               />
             )}
 
-            {/* 7. Configuración / Branding */}
+            {/* 8. Configuración / Branding */}
             {currentTab === 'settings' && (
               <BrandingView
                 user={user}

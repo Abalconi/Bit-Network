@@ -11,6 +11,7 @@ import {
   Share2
 } from 'lucide-react';
 import { UserProfile } from '../types';
+import { INITIAL_USER_PROFILE } from '../data/mockData';
 
 interface ProfileSectionDetailModalProps {
   section: 'sobreMi' | 'miTrabajo' | 'contactame' | null;
@@ -27,8 +28,10 @@ export const ProfileSectionDetailModal: React.FC<ProfileSectionDetailModalProps>
 }) => {
   if (!section) return null;
 
-  const effectiveWa = user.whatsapp?.trim() || user.telefono?.trim() || '';
-  const rawWa = effectiveWa.replace(/\D/g, '');
+  const displayWa = user.whatsapp?.trim() || user.telefono?.trim() || INITIAL_USER_PROFILE.whatsapp;
+  const rawWa = displayWa.replace(/\D/g, '');
+  const displayEmail = user.email?.trim() || INITIAL_USER_PROFILE.email;
+  const displayPhone = user.telefono?.trim() || user.whatsapp?.trim() || INITIAL_USER_PROFILE.telefono;
 
   return (
     <div 
@@ -164,61 +167,58 @@ export const ProfileSectionDetailModal: React.FC<ProfileSectionDetailModalProps>
               </p>
 
               <div className="grid grid-cols-1 gap-2.5">
-                {user.whatsapp && (
-                  <a
-                    href={`https://wa.me/${rawWa}?text=Hola%20${encodeURIComponent(user.nombre)},%20acabo%20de%20escanear%20tu%20Bit%20y%20me%20gustar%C3%ADa%20conversar.`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-3.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 flex items-center justify-between transition cursor-pointer text-emerald-950"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-[#25D366] text-white flex items-center justify-center shadow-sm">
-                        <MessageCircle className="w-5 h-5 fill-current" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-xs">WhatsApp Directo</p>
-                        <p className="text-[11px] text-emerald-700">{user.whatsapp}</p>
-                      </div>
+                {/* 1. WhatsApp Directo */}
+                <a
+                  href={`https://wa.me/${rawWa}?text=Hola%20${encodeURIComponent(user.nombre || INITIAL_USER_PROFILE.nombre)},%20acabo%20de%20escanear%20tu%20Bit%20y%20me%20gustar%C3%ADa%20conversar.`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-3.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 flex items-center justify-between transition cursor-pointer text-emerald-950"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#25D366] text-white flex items-center justify-center shadow-sm">
+                      <MessageCircle className="w-5 h-5 fill-current" />
                     </div>
-                    <ExternalLink className="w-4 h-4 text-emerald-600" />
-                  </a>
-                )}
+                    <div>
+                      <p className="font-bold text-xs">WhatsApp Directo</p>
+                      <p className="text-[11px] text-emerald-700">{displayWa}</p>
+                    </div>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-emerald-600" />
+                </a>
 
-                {user.email && (
-                  <a
-                    href={`mailto:${user.email}`}
-                    className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-between transition cursor-pointer text-slate-900"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
-                        <Mail className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-xs">Correo Electrónico</p>
-                        <p className="text-[11px] text-slate-500">{user.email}</p>
-                      </div>
+                {/* 2. Correo Electrónico */}
+                <a
+                  href={`mailto:${displayEmail}`}
+                  className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-between transition cursor-pointer text-slate-900"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                      <Mail className="w-5 h-5" />
                     </div>
-                    <ExternalLink className="w-4 h-4 text-slate-400" />
-                  </a>
-                )}
+                    <div>
+                      <p className="font-bold text-xs">Correo Electrónico</p>
+                      <p className="text-[11px] text-slate-500">{displayEmail}</p>
+                    </div>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-slate-400" />
+                </a>
 
-                {user.telefono && (
-                  <a
-                    href={`tel:${user.telefono}`}
-                    className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-between transition cursor-pointer text-slate-900"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-slate-800 text-white flex items-center justify-center shadow-sm">
-                        <Phone className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-xs">Llamada Telefónica</p>
-                        <p className="text-[11px] text-slate-500">{user.telefono}</p>
-                      </div>
+                {/* 3. Llamada Telefónica */}
+                <a
+                  href={`tel:${displayPhone}`}
+                  className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-between transition cursor-pointer text-slate-900"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-slate-800 text-white flex items-center justify-center shadow-sm">
+                      <Phone className="w-5 h-5" />
                     </div>
-                    <ExternalLink className="w-4 h-4 text-slate-400" />
-                  </a>
-                )}
+                    <div>
+                      <p className="font-bold text-xs">Llamada Telefónica</p>
+                      <p className="text-[11px] text-slate-500">{displayPhone}</p>
+                    </div>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-slate-400" />
+                </a>
               </div>
 
               <div className="pt-2 border-t border-slate-100">
