@@ -4,7 +4,7 @@ import coverImg from '../assets/images/guatemala_volcano_cover_1790194928574.jpg
 
 export const INITIAL_USER_PROFILE: UserProfile = {
   id: 'usr-alessandra-01',
-  email: 'alessandra@bit.me',
+  email: 'dalebv87@gmail.com',
   nombre: 'Alessandra Balconi',
   cargo: 'Head of Business Intelligence',
   empresa: 'Data & Tech Solutions',
