@@ -287,7 +287,7 @@ export const ClientProfileShowcase: React.FC<ClientProfileShowcaseProps> = ({
 
                   {/* WhatsApp Directo */}
                   <a
-                    href={`https://wa.me/50255551234?text=Hola%20${encodeURIComponent(user.nombre)},%20vi%20tu%20perfil%20Bit.`}
+                    href={`https://wa.me/${(user.whatsapp || user.telefono || '').replace(/\D/g, '') || '50256977540'}?text=Hola%20${encodeURIComponent(user.nombre)},%20vi%20tu%20perfil%20Bit.`}
                     target="_blank"
                     rel="noreferrer"
                     className="w-8 h-8 rounded-full bg-[#25D366] text-white flex items-center justify-center hover:scale-110 active:scale-95 transition shadow-sm"
@@ -488,7 +488,7 @@ export const ClientProfileShowcase: React.FC<ClientProfileShowcaseProps> = ({
                       </svg>
                     </a>
                     <a
-                      href={`https://wa.me/50255551234?text=Hola%20${encodeURIComponent(user.nombre)}`}
+                      href={`https://wa.me/${(user.whatsapp || user.telefono || '').replace(/\D/g, '') || '50256977540'}?text=Hola%20${encodeURIComponent(user.nombre)}`}
                       target="_blank"
                       rel="noreferrer"
                       className="w-7 h-7 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-sm"
@@ -672,7 +672,7 @@ export const ClientProfileShowcase: React.FC<ClientProfileShowcaseProps> = ({
                 </svg>
               </a>
               <a
-                href={`https://wa.me/50255551234?text=Hola%20${encodeURIComponent(user.nombre)}`}
+                href={`https://wa.me/${(user.whatsapp || user.telefono || '').replace(/\D/g, '') || '50256977540'}?text=Hola%20${encodeURIComponent(user.nombre)}`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-8 h-8 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-sm"

@@ -1,0 +1,63 @@
+{
+  "id": "usr-alessandra-01",
+  "email": "dalebv87@gmail.com",
+  "nombre": "Alessandra Balconi",
+  "cargo": "Head of Business Intelligence",
+  "empresa": "Data & Tech Solutions",
+  "tagline": "Data & Tech | Business Intelligence | Travel",
+  "descripcion": "Especialista en analítica predictiva, arquitectura de datos y crecimiento empresarial. Conectando personas y tecnología para transformar decisiones complejas en resultados claros.",
+  "avatarUrl": "",
+  "coverUrl": "",
+  "telefono": "+502 5697 7540",
+  "whatsapp": "+502 5697 7540",
+  "ubicacion": "Ciudad de Guatemala, GT",
+  "handle": "alessandra",
+  "redesSociales": {
+    "linkedin": "https://linkedin.com/in/alessandrabalconi",
+    "instagram": "https://instagram.com/alessandrabalconi",
+    "tiktok": "https://tiktok.com/@alessandrabalconi",
+    "facebook": "https://facebook.com/alessandra.balconi",
+    "website": "https://bit.me/alessandra"
+  },
+  "sections": {
+    "sobreMi": {
+      "titulo": "Sobre mí",
+      "subtitulo": "Conoce más sobre mí y mi experiencia",
+      "contenido": "Más de 8 años liderando equipos de BI, analítica avanzada y modelado de datos para empresas Fortune 500 y startups de alto impacto en Latinoamérica y Europa.",
+      "skills": [
+        "Business Intelligence",
+        "Data Engineering",
+        "BigQuery & SQL",
+        "Growth Analytics",
+        "NFC Tech"
+      ]
+    },
+    "miTrabajo": {
+      "titulo": "Mi trabajo",
+      "subtitulo": "Proyectos, skills y lo que hago",
+      "proyectos": [
+        {
+          "nombre": "Data Platform Scaling",
+          "detalle": "Migración y optimización de pipelines de datos procesando más de 50M de eventos diarios."
+        },
+        {
+          "nombre": "Bit Networking Deployment",
+          "detalle": "Estrategia de adopción de credenciales físicas NFC e integración instantánea con CRM."
+        },
+        {
+          "nombre": "Executive Dashboards",
+          "detalle": "Visualización ejecutiva de KPI para C-Level con reportes en tiempo real y alertas automáticas."
+        }
+      ]
+    },
+    "contactame": {
+      "titulo": "Contáctame",
+      "subtitulo": "Hablemos, estoy disponible",
+      "disponible": true,
+      "mensaje": "Escríbeme o llámame para coordinar una reunión."
+    }
+  },
+  "subscription_status": "active",
+  "subscription_plan": "superadmin",
+  "is_superuser": true
+}

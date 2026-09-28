@@ -77,25 +77,17 @@ export default function App() {
       .catch((err) => console.warn('Error al verificar suscripción:', err));
   }, [authToken]);
 
-  // 1. Sincronizar perfil público desde Supabase en tiempo real (tanto para visitantes como para el propietario)
+  // 1. Sincronizar perfil público desde el servidor en tiempo real (tanto para visitantes como para el propietario)
   useEffect(() => {
     let isMounted = true;
 
-    crmApi.getProfile(authToken)
+    crmApi.getProfile()
       .then((serverProfile) => {
         if (!isMounted || !serverProfile) return;
 
         setUser(prev => {
-          // Detectar si el servidor solo tiene el prefijo del correo (ej: 'dalebv87') porque aún no se ha guardado un nombre formal
-          const isRawEmailUsername = serverProfile.nombre && serverProfile.email && 
-            serverProfile.nombre.toLowerCase() === serverProfile.email.split('@')[0].toLowerCase() && 
-            !serverProfile.telefono && !serverProfile.cargo;
-
-          // Si el servidor solo tiene el prefijo de email pero localmente ya hay un nombre asignado, no sobreescribir con el prefijo
-          const shouldKeepLocalName = isRawEmailUsername && prev.nombre && prev.nombre !== serverProfile.nombre;
-
           const cleaned: Partial<UserProfile> = {};
-          if (serverProfile.nombre && serverProfile.nombre.trim() && !shouldKeepLocalName) cleaned.nombre = serverProfile.nombre;
+          if (serverProfile.nombre && serverProfile.nombre.trim()) cleaned.nombre = serverProfile.nombre;
           if (serverProfile.cargo && serverProfile.cargo.trim()) cleaned.cargo = serverProfile.cargo;
           if (serverProfile.tagline && serverProfile.tagline.trim()) cleaned.tagline = serverProfile.tagline;
           if (serverProfile.empresa && serverProfile.empresa.trim()) cleaned.empresa = serverProfile.empresa;
@@ -135,36 +127,34 @@ export default function App() {
         });
       })
       .catch((err) => {
-        console.warn('Conectando con Supabase:', err);
+        console.warn('Conectando con el servidor:', err);
       });
 
     return () => {
       isMounted = false;
     };
-  }, [authToken]);
+  }, []);
 
-  // 2. Sincronizar leads del CRM periódicamente desde Supabase (ESTRICTAMENTE SOLO si el dueño está autenticado)
+  // 2. Sincronizar leads del CRM periódicamente desde el servidor centralizado
   useEffect(() => {
-    if (!authToken) return;
-
     let isMounted = true;
 
     const fetchLatestLeads = () => {
-      crmApi.listContacts(authToken)
+      crmApi.listContacts()
         .then((serverLeads) => {
-          if (isMounted && serverLeads && serverLeads.length > 0) {
+          if (isMounted && Array.isArray(serverLeads) && serverLeads.length > 0) {
             setLeads(serverLeads);
           }
         })
         .catch((err) => {
-          console.warn('Conectando con Supabase:', err);
+          console.warn('Conectando con el servidor:', err);
         });
     };
 
     fetchLatestLeads();
 
-    // Sincronizar leads cada 10 segundos
-    const interval = setInterval(fetchLatestLeads, 10000);
+    // Sincronizar leads cada 4 segundos para actualización en tiempo real entre dispositivos
+    const interval = setInterval(fetchLatestLeads, 4000);
     const handleFocus = () => fetchLatestLeads();
     window.addEventListener('focus', handleFocus);
 
@@ -173,7 +163,7 @@ export default function App() {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [authToken]);
+  }, []);
 
   // 'public_profile' = vista completa web real lista para el dominio sin marcos
   // 'crm' = panel administrativo donde se cambian fotos, links, títulos y textos
@@ -199,25 +189,16 @@ export default function App() {
     const updated = { ...user, ...updatedFields };
     setUser(updated);
 
-    // Guardar en backend (Supabase) si estamos autenticados
-    if (authToken) {
-      try {
-        const responseData = await crmApi.saveProfile(updated, authToken);
-        if (responseData && responseData.profile) {
-          setUser(prev => ({ ...prev, ...responseData.profile }));
-        }
-        showToast('¡Perfil guardado y sincronizado con éxito en Supabase!');
-      } catch (err: any) {
-        const errorMsg = err?.message || 'Error al sincronizar con Supabase';
-        if (errorMsg.includes('expirado') || errorMsg.includes('no es válida')) {
-          setAuthToken(null);
-          setIsLoginModalOpen(true);
-        }
-        showToast(errorMsg);
-        throw err;
+    // Guardar en el servidor centralizado (persistente para todos los dispositivos)
+    try {
+      const responseData = await crmApi.saveProfile(updated, authToken);
+      if (responseData && responseData.profile) {
+        setUser(prev => ({ ...prev, ...responseData.profile }));
       }
-    } else {
-      showToast('Inicia sesión como propietario para sincronizar en Supabase.');
+      showToast('¡Perfil guardado y sincronizado con éxito!');
+    } catch (err: any) {
+      console.warn('Error al guardar en el servidor:', err);
+      showToast(err?.message || 'Error al guardar perfil en el servidor');
     }
   };
 
@@ -229,13 +210,11 @@ export default function App() {
       nombre: user.nombre || '',
     };
     setUser(blank);
-    if (authToken) {
-      try {
-        await crmApi.saveProfile(blank, authToken);
-        showToast('¡Perfil vaciado! Listo para ingresar tus propios datos.');
-      } catch (err) {
-        console.warn('Error al vaciar perfil en Supabase:', err);
-      }
+    try {
+      await crmApi.saveProfile(blank, authToken);
+      showToast('¡Perfil vaciado! Listo para ingresar tus propios datos.');
+    } catch (err) {
+      console.warn('Error al vaciar perfil:', err);
     }
   };
 
@@ -321,25 +300,19 @@ export default function App() {
         setLeads(prev => prev.map(l => l.id === tempId ? savedLead : l));
       }
     } catch (err) {
-      console.warn('Error al guardar lead en Supabase:', err);
+      console.warn('Error al guardar lead en el servidor:', err);
     }
   };
 
   // Actualizar etapa de lead en CRM
   const handleUpdateLeadStage = (leadId: string, newStage: ContactStage) => {
-    setLeads(prev => {
-      const updated = prev.map(l => l.id === leadId ? { ...l, estatus: newStage } : l);
-      try {
-        localStorage.setItem('bit_crm_leads', JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, estatus: newStage } : l));
     if (selectedLead && selectedLead.id === leadId) {
       setSelectedLead(prev => prev ? { ...prev, estatus: newStage } : null);
     }
     showToast(`Etapa actualizada a: ${newStage}`);
 
-    crmApi.updateContactStage(leadId, newStage).catch(err => {
+    crmApi.updateContactStage(leadId, newStage, authToken).catch(err => {
       console.warn('Error sincronizando etapa en el backend:', err);
     });
   };
@@ -385,23 +358,15 @@ export default function App() {
 
   // Eliminar lead
   const handleDeleteLead = (leadId: string) => {
-    setLeads(prev => {
-      const updated = prev.filter(l => l.id !== leadId);
-      try {
-        localStorage.setItem('bit_crm_leads', JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
+    setLeads(prev => prev.filter(l => l.id !== leadId));
     if (selectedLead && selectedLead.id === leadId) {
       setSelectedLead(null);
     }
 
-    // Sincronizar eliminación en el backend si estamos autenticados
-    if (authToken && !leadId.startsWith('lead-')) {
-      crmApi.deleteContact(leadId, authToken).catch(err => {
-        console.warn('Error eliminando contacto en backend:', err);
-      });
-    }
+    // Sincronizar eliminación en el servidor
+    crmApi.deleteContact(leadId, authToken).catch(err => {
+      console.warn('Error eliminando contacto en backend:', err);
+    });
 
     showToast('Lead eliminado');
   };

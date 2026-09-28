@@ -1,0 +1,87 @@
+[
+  {
+    "id": "lead-1790619437596",
+    "nombre": "Maria Gomez",
+    "email": "maria@ejemplo.com",
+    "telefono": "+502 9988 7766",
+    "empresa": "Corporacion GT",
+    "cargo": "Gerente",
+    "canal": "NFC",
+    "estatus": "Nuevo",
+    "origen": "Tarjeta BIT NFC",
+    "fecha": "Hoy",
+    "ubicacion": "Guatemala",
+    "avatarInitial": "M",
+    "avatarColor": "bg-cyan-100 text-cyan-700",
+    "notasHistorial": []
+  },
+  {
+    "id": "lead-1",
+    "nombre": "Carlos Mendoza",
+    "email": "carlos.mendoza@innovagroup.gt",
+    "telefono": "+502 4433 2211",
+    "empresa": "Innova Group",
+    "cargo": "Director de Operaciones",
+    "canal": "NFC",
+    "estatus": "Nuevo",
+    "origen": "Tarjeta BIT NFC",
+    "fecha": "Hoy",
+    "ubicacion": "Ciudad de Guatemala",
+    "avatarColor": "bg-indigo-100 text-indigo-700",
+    "avatarInitial": "C",
+    "notasHistorial": [
+      {
+        "id": "note-1",
+        "texto": "Escaneó tarjeta BIT en conferencia de tecnología. Interesado en soluciones corporativas.",
+        "fecha": "Hoy",
+        "autor": "Alessandra Balconi"
+      }
+    ]
+  },
+  {
+    "id": "lead-2",
+    "nombre": "Sofía Morales",
+    "email": "smorales@fintechguate.com",
+    "telefono": "+502 5988 7766",
+    "empresa": "Fintech Guate",
+    "cargo": "VP de Producto",
+    "canal": "WhatsApp",
+    "estatus": "Contactado",
+    "origen": "Compartido por WhatsApp",
+    "fecha": "Ayer",
+    "ubicacion": "Zona 10, GT",
+    "avatarColor": "bg-purple-100 text-purple-700",
+    "avatarInitial": "S",
+    "notasHistorial": [
+      {
+        "id": "note-2",
+        "texto": "Escribió directamente por el enlace de WhatsApp del perfil BIT.",
+        "fecha": "Ayer",
+        "autor": "Alessandra Balconi"
+      }
+    ]
+  },
+  {
+    "id": "lead-3",
+    "nombre": "Rodrigo Castillo",
+    "email": "rcastillo@logisticalatam.com",
+    "telefono": "+502 4122 3344",
+    "empresa": "Logística Latam",
+    "cargo": "Gerente General",
+    "canal": "QR",
+    "estatus": "En negociación",
+    "origen": "Código QR Perfil",
+    "fecha": "Hace 2 días",
+    "ubicacion": "Carretera a El Salvador",
+    "avatarColor": "bg-amber-100 text-amber-700",
+    "avatarInitial": "R",
+    "notasHistorial": [
+      {
+        "id": "note-3",
+        "texto": "Reunión programada para revisar propuesta.",
+        "fecha": "Hace 2 días",
+        "autor": "Alessandra Balconi"
+      }
+    ]
+  }
+]
