@@ -15,9 +15,20 @@ class LoginAPIView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get('email', '').strip()
+        email = request.data.get('email', '').strip().lower()
         password = request.data.get('password', '')
-        user = authenticate(request, email=email, password=password)
+        user = authenticate(request, email=email, password=password) or authenticate(request, username=email, password=password)
+        if user is None:
+            # Fallback a búsqueda directa case-insensitive
+            try:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                candidate = User.objects.filter(email__iexact=email).first()
+                if candidate and candidate.check_password(password):
+                    user = candidate
+            except Exception:
+                pass
+
         if user is None:
             return Response(
                 {'detail': 'Correo o contraseña incorrectos.'},

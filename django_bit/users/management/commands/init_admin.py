@@ -16,7 +16,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('[BIT AUTO-ADMIN] No se especificó ADMIN_EMAIL.'))
             return
 
-        user = User.objects.filter(email=email).first()
+        user = User.objects.filter(email__iexact=email).first()
 
         if not user:
             user = User.objects.create_superuser(
@@ -26,22 +26,11 @@ class Command(BaseCommand):
                 is_superuser=True,
                 is_active=True
             )
-            self.stdout.write(self.style.SUCCESS(f'[BIT AUTO-ADMIN] Superusuario {email} creado exitosamente de forma permanente.'))
+            self.stdout.write(self.style.SUCCESS(f'[BIT AUTO-ADMIN] Superusuario {email} creado exitosamente con la contraseña configurada.'))
         else:
-            updated = False
-            if not user.is_superuser or not user.is_staff:
-                user.is_superuser = True
-                user.is_staff = True
-                updated = True
-
-            # Si en algún momento necesitas forzar cambio de contraseña desde Railway:
-            # agregas RESET_ADMIN_PASSWORD=true en variables de entorno
-            if force_password:
-                user.set_password(password)
-                updated = True
-                self.stdout.write(self.style.SUCCESS(f'[BIT AUTO-ADMIN] Contraseña de {email} sincronizada con ADMIN_PASSWORD.'))
-
-            if updated:
-                user.save()
-
-            self.stdout.write(self.style.SUCCESS(f'[BIT AUTO-ADMIN] Superusuario {email} verificado y activo en la base de datos.'))
+            user.is_superuser = True
+            user.is_staff = True
+            user.is_active = True
+            user.set_password(password)
+            user.save()
+            self.stdout.write(self.style.SUCCESS(f'[BIT AUTO-ADMIN] Superusuario {email} verificado y contraseña actualizada a ADMIN_PASSWORD.'))
